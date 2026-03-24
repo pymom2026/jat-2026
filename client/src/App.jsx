@@ -11,7 +11,7 @@ function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    axios.get('/api/me')
+    axios.get(`${import.meta.env.VITE_API_URL}/api/me`)
       .then(r => setUser(r.data.user))
       .catch(() => setUser(null))
       .finally(() => setLoading(false))
