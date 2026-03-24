@@ -3,20 +3,13 @@ const express = require('express');
 const session = require('express-session');
 const passport = require('passport');
 const cors = require('cors');
-
-require('./routes/auth'); // initialize passport strategy
-
+require('./routes/auth');
 const authRouter = require('./routes/auth');
 const jobsRouter = require('./routes/jobs');
 const gmailRouter = require('./routes/gmail');
 
 const app = express();
 app.set('trust proxy', 1);
-```
-
-Commit both changes on GitHub. While Railway redeploys, also make sure `CLIENT_URL` is set in your Railway server variables:
-```
-CLIENT_URL=https://carefree-essence-production.up.railway.app
 
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(express.json());
@@ -28,7 +21,6 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
-
 app.use('/auth', authRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/gmail', gmailRouter);
