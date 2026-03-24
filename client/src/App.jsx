@@ -18,6 +18,7 @@ function App() {
   }, [])
 
   if (loading) return <div className="loading">Loading...</div>
+  
 
   return (
     <BrowserRouter>
