@@ -1,0 +1,8 @@
+{
+  "name": "jat-2026",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm install --prefix client && npm run build --prefix client && cp -r client/dist server/public",
+    "start": "npm install --prefix server && node server/index.js"
+  }
+}
