@@ -34,4 +34,16 @@ app.get('/api/me', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+```
+
+**Step 3** — In Railway, **delete the client service** entirely. The server will serve both the API and the frontend from one URL.
+
+**Step 4** — Update your Google OAuth authorized origins to just:
+```
+https://jat-2026-production.up.railway.app
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
