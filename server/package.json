@@ -5,6 +5,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"
+    "build": "cd ../client && npm install && npm run build && cp -r dist ../server/public"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.79.0",
