@@ -35,12 +35,6 @@ app.get('/api/me', (req, res) => {
   }
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-const PORT = process.env.PORT || 3001;
 app.get('/api/debug', (req, res) => {
   res.json({
     isAuthenticated: req.isAuthenticated(),
@@ -48,10 +42,11 @@ app.get('/api/debug', (req, res) => {
     user: req.user
   });
 });
-```
 
-Commit, wait for redeploy, then visit:
-```
-https://jat-2026-production.up.railway.app/api/debug
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
