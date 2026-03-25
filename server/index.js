@@ -41,4 +41,17 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
+app.get('/api/debug', (req, res) => {
+  res.json({
+    isAuthenticated: req.isAuthenticated(),
+    session: req.session,
+    user: req.user
+  });
+});
+```
+
+Commit, wait for redeploy, then visit:
+```
+https://jat-2026-production.up.railway.app/api/debug
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
