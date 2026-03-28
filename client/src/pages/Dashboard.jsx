@@ -11,6 +11,7 @@ import Funnel from '../components/Funnel'
 const STATUS_LABELS = ['Total Applied', 'In Review', 'Interview', 'Rejected']
 const STATUS_KEYS = ['all', 'In Review', 'Interview', 'Rejected']
 const STATUS_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444']
+const EXCLUDED_FROM_COUNT = ['Leads', 'Duplicate']
 
 function formatDateShort(dateStr) {
   if (!dateStr) return ''
@@ -22,13 +23,13 @@ function formatDateShort(dateStr) {
 function DashboardHome({ jobs, allJobs, fromDate, onRefresh, onAddJob }) {
   const navigate = useNavigate()
 
+  const activeJobs = jobs.filter(j => !EXCLUDED_FROM_COUNT.includes(j.status))
   const counts = [
-    jobs.length,
-    jobs.filter(j => j.status === 'In Review').length,
-    jobs.filter(j => j.status === 'Interview').length,
-    jobs.filter(j => j.status === 'Rejected').length,
-  ]
-
+    activeJobs.length,
+    activeJobs.filter(j => j.status === 'In Review').length,
+    activeJobs.filter(j => j.status === 'Interview').length,
+    activeJobs.filter(j => j.status === 'Rejected').length,
+]
   return (
     <div className="dashboard-home">
       <div className="dashboard-header">
@@ -138,7 +139,14 @@ function Dashboard({ user, setUser }) {
       alert('Error deleting job')
     }
   }
-
+const handleMarkDuplicate = async (job) => {
+  try {
+    await axios.put(`/api/jobs/${job.rowIndex}`, { ...job, status: 'Duplicate' })
+    fetchJobs()
+  } catch (err) {
+    alert('Error marking duplicate: ' + err.message)
+  }
+}
   return (
     <div className="app-layout">
       <Navbar
@@ -177,8 +185,8 @@ function Dashboard({ user, setUser }) {
               <CompanyList jobs={jobs} onEdit={j => { setEditJob(j); setShowForm(true) }} onDelete={handleDelete} />
             } />
             <Route path="/company/:company" element={
-              <RoleList jobs={allJobs} onEdit={j => { setEditJob(j); setShowForm(true) }} onDelete={handleDelete} />
-            } />
+  <RoleList jobs={allJobs} onEdit={j => { setEditJob(j); setShowForm(true) }} onDelete={handleDelete} onMarkDuplicate={handleMarkDuplicate} />
+} />
           </Routes>
         )}
       </main>
