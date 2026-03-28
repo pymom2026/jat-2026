@@ -25,7 +25,7 @@ function DashboardHome({ jobs, allJobs, fromDate, onRefresh, onAddJob }) {
   const counts = [
     jobs.length,
     jobs.filter(j => j.status === 'In Review').length,
-    jobs.filter(j => j.status === 'Next Steps').length,
+    jobs.filter(j => j.status === 'Interview').length,
     jobs.filter(j => j.status === 'Rejected').length,
   ]
 
@@ -57,7 +57,7 @@ function DashboardHome({ jobs, allJobs, fromDate, onRefresh, onAddJob }) {
         ))}
       </div>
 
-      <Funnel jobs={jobs} />
+      <Funnel jobs={jobs} allJobs={allJobs} />
     </div>
   )
 }
