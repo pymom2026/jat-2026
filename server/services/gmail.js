@@ -81,7 +81,7 @@ function detectStatus(subject, body) {
   if (REJECTION_PHRASES.some(p => text.includes(p))) return 'Rejected';
 
   // Next steps / interview
-  if (NEXT_STEPS_PHRASES.some(p => text.includes(p))) return 'Next Steps';
+  if (NEXT_STEPS_PHRASES.some(p => text.includes(p))) return 'Interview';
 
   return 'In Review';
 }
