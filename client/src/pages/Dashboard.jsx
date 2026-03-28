@@ -8,8 +8,8 @@ import RoleList from '../components/RoleList'
 import JobForm from '../components/JobForm'
 import Funnel from '../components/Funnel'
 
-const STATUS_LABELS = ['Total Applied', 'In Review', 'Next Steps', 'Rejected']
-const STATUS_KEYS = ['all', 'In Review', 'Next Steps', 'Rejected']
+const STATUS_LABELS = ['Total Applied', 'In Review', 'Interview', 'Rejected']
+const STATUS_KEYS = ['all', 'In Review', 'Interview', 'Rejected']
 const STATUS_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444']
 
 function formatDateShort(dateStr) {
