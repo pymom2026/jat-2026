@@ -14,7 +14,7 @@ const BLOCKLIST = [
   'hilary chu', 'ballet', 'credit card', 'informed delivery',
   'communications@srvcouncilpta.org', 'info@srvef.ccsend.com',
   'subscriptions@seekingalpha.com', 'president@coyotecreekpta.com',
-  'admin@rachelsballet.com',
+  'admin@rachelsballet.com','Passport Application Status',
 ];
 
 // ── Allowlist subjects ────────────────────────────────────────────────────────
