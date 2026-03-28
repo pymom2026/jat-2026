@@ -3,17 +3,20 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 const STATUS_DISPLAY = {
   all: 'All Applications',
   'In Review': 'In Review',
-  'Next Steps': 'Next Steps',
-  'Rejected': 'Rejected'
+  'Interview': 'Interview',
+  'Rejected': 'Rejected',
+  'Leads': 'Leads',
 }
+
+const EXCLUDED_FROM_COUNT = ['Leads', 'Duplicate']
 
 function CompanyList({ jobs, onEdit, onDelete }) {
   const { statusKey } = useParams()
   const navigate = useNavigate()
+  const filtered = statusKey === 'all'
+    ? jobs.filter(j => !EXCLUDED_FROM_COUNT.includes(j.status))
+    : jobs.filter(j => j.status === statusKey)
 
-  const filtered = statusKey === 'all' ? jobs : jobs.filter(j => j.status === statusKey)
-
-  // Group by company
   const companies = {}
   for (const job of filtered) {
     if (!companies[job.company]) companies[job.company] = []
@@ -50,5 +53,4 @@ function CompanyList({ jobs, onEdit, onDelete }) {
     </div>
   )
 }
-
 export default CompanyList
