@@ -223,9 +223,21 @@ async function scanJobEmails(accessToken, afterTimestamp, fullScan = false) {
       console.error('Error fetching message:', msg.id, err.message);
     }
   }
-
-  console.log(`[Scan] ${jobs.length} jobs found from ${messages.length} emails`);
-  return jobs;
+  
+// Deduplicate: if same company has both a rejection and an application email, keep rejection
+const companyBestStatus = {};
+const statusPriority = { 'Rejected': 4, 'Interview': 3, 'In Review': 2, 'Applied': 1, 'Leads': 0 };
+for (const job of jobs) {
+  const key = job.company.toLowerCase();
+  if (!companyBestStatus[key] || (statusPriority[job.status] || 0) > (statusPriority[companyBestStatus[key].status] || 0)) {
+    companyBestStatus[key] = job;
+  }
+}
+const deduped = Object.values(companyBestStatus);
+console.log(`[Scan] ${deduped.length} unique jobs from ${jobs.length} raw matches, ${messages.length} emails scanned`);
+return deduped;
+  
+  
 }
 
 module.exports = { scanJobEmails };
