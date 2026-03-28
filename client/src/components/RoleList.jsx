@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom'
 const STATUS_COLORS = {
   'Applied': '#6366f1',
   'In Review': '#f59e0b',
-  'Next Steps': '#10b981',
-  'Rejected': '#ef4444'
+  'Interview': '#10b981',
+  'Rejected': '#ef4444',
+  'Leads': '#8b5cf6',
+  'Duplicate': '#9ca3af',
 }
 
-function RoleList({ jobs, onEdit, onDelete }) {
+function RoleList({ jobs, onEdit, onDelete, onMarkDuplicate }) {
   const { company } = useParams()
   const navigate = useNavigate()
   const companyName = decodeURIComponent(company)
@@ -25,10 +27,10 @@ function RoleList({ jobs, onEdit, onDelete }) {
       </div>
       <div className="role-list">
         {roles.map(job => (
-          <div key={job.rowIndex} className="role-card">
+          <div key={job.rowIndex} className={`role-card${job.status === 'Duplicate' ? ' role-duplicate' : ''}`}>
             <div className="role-header">
               <div className="role-title">{job.role}</div>
-              <span className="status-badge" style={{ background: STATUS_COLORS[job.status] + '20', color: STATUS_COLORS[job.status] }}>
+              <span className="status-badge" style={{ background: (STATUS_COLORS[job.status] || '#9ca3af') + '20', color: STATUS_COLORS[job.status] || '#9ca3af' }}>
                 {job.status}
               </span>
             </div>
@@ -40,6 +42,9 @@ function RoleList({ jobs, onEdit, onDelete }) {
             {job.notes && <div className="role-notes">{job.notes}</div>}
             <div className="role-actions">
               <button className="btn-edit" onClick={() => onEdit(job)}>Edit</button>
+              {job.status !== 'Duplicate' && (
+                <button className="btn-duplicate" onClick={() => onMarkDuplicate(job)}>Mark duplicate</button>
+              )}
               <button className="btn-delete" onClick={() => onDelete(job.rowIndex)}>Delete</button>
             </div>
           </div>
@@ -48,5 +53,4 @@ function RoleList({ jobs, onEdit, onDelete }) {
     </div>
   )
 }
-
 export default RoleList
