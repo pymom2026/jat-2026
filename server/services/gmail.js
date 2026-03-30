@@ -224,19 +224,15 @@ async function scanJobEmails(accessToken, afterTimestamp, fullScan = false) {
     }
   }
   
-// Deduplicate: if same company has both a rejection and an application email, keep rejection
-const companyBestStatus = {};
-const statusPriority = { 'Rejected': 4, 'Interview': 3, 'In Review': 2, 'Applied': 1, 'Leads': 0 };
-for (const job of jobs) {
-  const key = job.company.toLowerCase();
-  if (!companyBestStatus[key] || (statusPriority[job.status] || 0) > (statusPriority[companyBestStatus[key].status] || 0)) {
-    companyBestStatus[key] = job;
-  }
-}
-const deduped = Object.values(companyBestStatus);
+// Deduplicate only by Gmail message ID — keep all legitimate separate emails
+const seen = new Set();
+const deduped = jobs.filter(j => {
+  if (seen.has(j.gmailId)) return false;
+  seen.add(j.gmailId);
+  return true;
+});
 console.log(`[Scan] ${deduped.length} unique jobs from ${jobs.length} raw matches, ${messages.length} emails scanned`);
 return deduped;
-  
   
 }
 
