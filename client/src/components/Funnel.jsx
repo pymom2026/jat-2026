@@ -3,13 +3,13 @@ function Funnel({ jobs, allJobs }) {
   const EXCLUDED = ['Leads', 'Duplicate']
 const activeJobs = jobs.filter(j => !EXCLUDED.includes(j.status))
 const total = activeJobs.length
-/* const inReview = activeJobs.filter(j => j.status === 'In Review').length
+const inReview = activeJobs.filter(j => j.status === 'In Review').length
 const interviewing = activeJobs.filter(j => j.status === 'Interview').length
-const rejected = activeJobs.filter(j => j.status === 'Rejected').length */
+const rejected = activeJobs.filter(j => j.status === 'Rejected').length 
   if (total === 0) return null
-  const inReview = jobs.filter(j => j.status === 'In Review').length
+  /* const inReview = jobs.filter(j => j.status === 'In Review').length
   const interviewing = jobs.filter(j => j.status === 'Interview').length
-  const rejected = jobs.filter(j => j.status === 'Rejected').length
+  const rejected = jobs.filter(j => j.status === 'Rejected').length */
   const leads = (allJobs || jobs).filter(j => j.status === 'Leads').length
   const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0
   const stages = [
