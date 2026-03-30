@@ -27,7 +27,7 @@ const ALLOWLIST_SUBJECTS = [
   'application for', 'applied for', 'next steps', 'moving forward',
   'offer letter', 'job offer', 'we regret', 'not moving forward',
   'unfortunately', 'coding challenge', 'technical assessment', 'take-home',
-  'your job application', 'application update', 'application status', 'you've been referred', 'you have been referred', 'referred you for', 'referred for the',
+  'your job application', 'application update', 'application status', "you've been referred", 'you have been referred', 'referred you for', 'referred for the',
 ];
 
 // ── LinkedIn "saved job" / lead subjects ──────────────────────────────────────
