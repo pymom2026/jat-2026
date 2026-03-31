@@ -52,3 +52,8 @@ function CompanyList({ jobs, onEdit, onDelete }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+export default CompanyList
