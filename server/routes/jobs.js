@@ -75,9 +75,9 @@ router.post('/insights', async (req, res) => {
     );
 
     const rejected = jobs.filter(j => j.status === 'Rejected');
-    if (rejected.length < 3) {
-      return res.json({ insight: null, message: 'Not enough rejections to analyze yet.' });
-    }
+    if (rejected.length === 0) {
+  return res.json({ insight: 'No rejections yet — keep applying!', count: 0 });
+}
 
     const Anthropic = require('@anthropic-ai/sdk').default;
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
