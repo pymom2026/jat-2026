@@ -63,16 +63,16 @@ console.log('rejectedCount:', rejectedCount, 'activeJobs:', activeJobs.length)
           >
             Refresh
           </button>
-          {rejectedCount >= 3 && (
-            <button
+          
+          <button
               className="btn-insights"
               onClick={fetchInsight}
               disabled={insightLoading}
               title="Use AI to analyze your rejection patterns"
             >
               {insightLoading ? '⏳ Analyzing...' : '✦ Get insights'}
-            </button>
-          )}
+          </button>
+          
           <button
             className="btn-primary"
             onClick={onAddJob}
