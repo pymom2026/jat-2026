@@ -151,11 +151,31 @@ function extractCompanyFromEmail(from) {
   const fromMatch = from.match(/^(.+?)\s*</);
   if (fromMatch) {
     let name = fromMatch[1].trim().replace(/"/g, '');
-    name = name.replace(/\s*(careers|recruiting|talent|hr|jobs|hiring|no.?reply|notifications?)\s*/gi, '').trim();
-    if (name.length > 0 && name.length < 60) return name;
+    // Only strip these words if they are NOT the entire name
+    const cleaned = name.replace(/\b(careers|recruiting|talent|hr|jobs|hiring|no.?reply|notifications?)\b/gi, '').trim();
+    // Only use cleaned name if it left something meaningful (3+ chars)
+    if (cleaned.length >= 3 && cleaned.length < 60) return cleaned;
+    // Otherwise fall through to domain extraction
   }
+  // Extract company name from email domain
   const domainMatch = from.match(/@([^.>]+)\./);
-  if (domainMatch) return domainMatch[1].charAt(0).toUpperCase() + domainMatch[1].slice(1);
+  if (domainMatch) {
+    const domain = domainMatch[1];
+    // Skip generic mail domains
+    const genericDomains = ['mail', 'email', 'smtp', 'send', 'mg', 'em', 'reply', 'bounce', 'noreply'];
+    if (genericDomains.includes(domain.toLowerCase())) {
+      // Try the next domain segment e.g. mail.amazon.com → amazon
+      const fullDomain = from.match(/@([^>]+)>/)?.[1] || '';
+      const segments = fullDomain.split('.');
+      // Find first non-generic segment
+      const company = segments.find(s =>
+        s.length > 2 && !genericDomains.includes(s.toLowerCase()) &&
+        !['com', 'net', 'org', 'io', 'ai', 'co'].includes(s.toLowerCase())
+      );
+      if (company) return company.charAt(0).toUpperCase() + company.slice(1);
+    }
+    return domain.charAt(0).toUpperCase() + domain.slice(1);
+  }
   return 'Unknown';
 }
 
