@@ -42,7 +42,13 @@ router.post('/scan', async (req, res) => {
       await clearGmailEntries(req.user.accessToken, process.env.GOOGLE_SHEET_ID, req.user.refreshToken);
     }
 
-    const lastScan = full ? null : getLastScan(req.user.id);
+    const lastScan = full ? null : await getLastScan(
+  req.user.accessToken,
+  process.env.GOOGLE_SHEET_ID,
+  req.user.id,
+  req.user.refreshToken
+);
+    
     const scanned = await scanJobEmails(req.user.accessToken, lastScan, full, fromOverride, toOverride);
 
     const existing = full ? [] : await getAllJobs(
