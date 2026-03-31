@@ -125,4 +125,52 @@ async function deleteJobs(accessToken, sheetId, rowIndices, refreshToken) {
   });
 }
 
-module.exports = { getAllJobs, addJob, addJobs, updateJob, deleteJob, deleteJobs };
+async function getLastScan(accessToken, sheetId, userId, refreshToken) {
+  try {
+    const sheets = await getSheetsClient(accessToken, refreshToken);
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: 'Meta!A:B'
+    });
+    const rows = res.data.values || [];
+    const row = rows.find(r => r[0] === `lastScan_${userId}`);
+    return row ? row[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+async function setLastScan(accessToken, sheetId, userId, timestamp, refreshToken) {
+  try {
+    const sheets = await getSheetsClient(accessToken, refreshToken);
+    // Check if row already exists
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: 'Meta!A:B'
+    });
+    const rows = res.data.values || [];
+    const rowIndex = rows.findIndex(r => r[0] === `lastScan_${userId}`);
+
+    if (rowIndex === -1) {
+      // Append new row
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: sheetId,
+        range: 'Meta!A:B',
+        valueInputOption: 'RAW',
+        requestBody: { values: [[`lastScan_${userId}`, timestamp]] }
+      });
+    } else {
+      // Update existing row
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `Meta!A${rowIndex + 1}:B${rowIndex + 1}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [[`lastScan_${userId}`, timestamp]] }
+      });
+    }
+  } catch (err) {
+    console.error('Error saving lastScan:', err.message);
+  }
+}
+
+module.exports = { getAllJobs, addJob, addJobs, updateJob, deleteJob, deleteJobs, getLastScan, setLastScan };
