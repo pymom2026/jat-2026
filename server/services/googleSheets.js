@@ -64,7 +64,7 @@ async function addJob(accessToken, sheetId, job, refreshToken) {
     spreadsheetId: sheetId,
     range: SHEET_RANGE,
     valueInputOption: 'RAW',
-    requestBody: { values: [row] }
+    requestBody: { values: rows }
   });
 }
 
