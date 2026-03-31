@@ -56,8 +56,30 @@ function DashboardHome({ jobs, allJobs, fromDate, toDate, onRefresh, onAddJob })
       <div className="dashboard-header">
         <h2>Dashboard</h2>
         <div className="dashboard-actions">
-          <button className="btn-secondary" onClick={onRefresh} title="Refresh job list">Refresh</button>
-          <button className="btn-primary" onClick={onAddJob} title="Manually add a job application">+ Add Job</button>
+          <button
+            className="btn-secondary"
+            onClick={onRefresh}
+            title="Refresh job list"
+          >
+            Refresh
+          </button>
+          {rejectedCount >= 3 && (
+            <button
+              className="btn-insights"
+              onClick={fetchInsight}
+              disabled={insightLoading}
+              title="Use AI to analyze your rejection patterns"
+            >
+              {insightLoading ? '⏳ Analyzing...' : '✦ Get insights'}
+            </button>
+          )}
+          <button
+            className="btn-primary"
+            onClick={onAddJob}
+            title="Manually add a job application"
+          >
+            + Add Job
+          </button>
         </div>
       </div>
 
@@ -83,47 +105,36 @@ function DashboardHome({ jobs, allJobs, fromDate, toDate, onRefresh, onAddJob })
 
       <Funnel jobs={jobs} allJobs={allJobs} />
 
-      {rejectedCount >= 3 && (
-        <div className="insights-section">
-          <div className="insights-header">
-            <h3 className="insights-title">Rejection insights</h3>
-            <button
-              className="btn-insights"
-              onClick={fetchInsight}
-              disabled={insightLoading}
-              title="Use AI to analyze your rejection patterns"
-            >
-              {insightLoading ? '⏳ Analyzing...' : '✦ Get insights'}
-            </button>
-          </div>
-
-          {showInsight && (
-            <div className="insight-card">
-              {insightLoading && (
-                <div className="insight-loading">Analyzing {rejectedCount} rejections...</div>
-              )}
-              {insightError && (
-                <div className="insight-error">{insightError}</div>
-              )}
-              {insight && !insightLoading && (
-                <>
-                  <div className="insight-text">{insight.insight}</div>
-                  <div className="insight-meta">
-                    Based on {insight.count} rejections
-                    <button
-                      className="insight-dismiss"
-                      onClick={() => { setShowInsight(false); setInsight(null) }}
-                    >dismiss</button>
-                  </div>
-                </>
-              )}
+      {showInsight && (
+        <div className="insight-card" style={{ marginTop: '24px' }}>
+          {insightLoading && (
+            <div className="insight-loading">
+              Analyzing {rejectedCount} rejections...
             </div>
+          )}
+          {insightError && (
+            <div className="insight-error">{insightError}</div>
+          )}
+          {insight && !insightLoading && (
+            <>
+              <div className="insight-text">{insight.insight}</div>
+              <div className="insight-meta">
+                Based on {insight.count} rejections
+                <button
+                  className="insight-dismiss"
+                  onClick={() => { setShowInsight(false); setInsight(null) }}
+                >
+                  dismiss
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}
     </div>
   )
 }
+
 function Dashboard({ user, setUser }) {
   const [allJobs, setAllJobs] = useState([])
   const [fromDate, setFromDate] = useState('')
@@ -149,15 +160,16 @@ function Dashboard({ user, setUser }) {
 
   useEffect(() => {
     fetchJobs()
-    axios.get('/api/gmail/scan-status').then(r => setLastScan(r.data.lastScan)).catch(() => {})
+    axios.get('/api/gmail/scan-status')
+      .then(r => setLastScan(r.data.lastScan))
+      .catch(() => {})
   }, [fetchJobs])
 
-  // Apply date filter
   const jobs = allJobs.filter(j => {
-  if (fromDate && j.dateApplied < fromDate) return false
-  if (toDate && j.dateApplied > toDate) return false
-  return true
-})
+    if (fromDate && j.dateApplied < fromDate) return false
+    if (toDate && j.dateApplied > toDate) return false
+    return true
+  })
 
   const handleLogout = async () => {
     await axios.get('/auth/logout')
@@ -207,28 +219,31 @@ function Dashboard({ user, setUser }) {
       alert('Error deleting job')
     }
   }
-const handleMarkDuplicate = async (job) => {
-  try {
-    await axios.put(`/api/jobs/${job.rowIndex}`, { ...job, status: 'Duplicate' })
-    fetchJobs()
-  } catch (err) {
-    alert('Error marking duplicate: ' + err.message)
+
+  const handleMarkDuplicate = async (job) => {
+    try {
+      await axios.put(`/api/jobs/${job.rowIndex}`, { ...job, status: 'Duplicate' })
+      fetchJobs()
+    } catch (err) {
+      alert('Error marking duplicate: ' + err.message)
+    }
   }
-}
+
   return (
     <div className="app-layout">
       <Navbar
-  user={user}
-  onLogout={handleLogout}
-  onScan={() => runScan(false)}
-  onFullScan={() => runScan(true)}
-  scanning={scanning}
-  lastScan={lastScan}
-  fromDate={fromDate}
-  toDate={toDate}
-  onFromDateChange={setFromDate}
-  onToDateChange={setToDate}
-  />
+        user={user}
+        onLogout={handleLogout}
+        onScan={() => runScan(false)}
+        onFullScan={() => runScan(true)}
+        scanning={scanning}
+        lastScan={lastScan}
+        fromDate={fromDate}
+        toDate={toDate}
+        onFromDateChange={setFromDate}
+        onToDateChange={setToDate}
+      />
+
       {scanResult && (
         <div className={`scan-banner ${scanResult.error ? 'error' : 'success'}`}>
           {scanResult.error
@@ -237,6 +252,7 @@ const handleMarkDuplicate = async (job) => {
           <button onClick={() => setScanResult(null)}>×</button>
         </div>
       )}
+
       <main className="main-content">
         {loading ? (
           <div className="loading">Loading jobs...</div>
@@ -247,19 +263,30 @@ const handleMarkDuplicate = async (job) => {
                 jobs={jobs}
                 allJobs={allJobs}
                 fromDate={fromDate}
+                toDate={toDate}
                 onRefresh={fetchJobs}
                 onAddJob={() => { setEditJob(null); setShowForm(true) }}
               />
             } />
             <Route path="/status/:statusKey" element={
-              <CompanyList jobs={jobs} onEdit={j => { setEditJob(j); setShowForm(true) }} onDelete={handleDelete} />
+              <CompanyList
+                jobs={jobs}
+                onEdit={j => { setEditJob(j); setShowForm(true) }}
+                onDelete={handleDelete}
+              />
             } />
             <Route path="/company/:company" element={
-  <RoleList jobs={allJobs} onEdit={j => { setEditJob(j); setShowForm(true) }} onDelete={handleDelete} onMarkDuplicate={handleMarkDuplicate} />
-} />
+              <RoleList
+                jobs={allJobs}
+                onEdit={j => { setEditJob(j); setShowForm(true) }}
+                onDelete={handleDelete}
+                onMarkDuplicate={handleMarkDuplicate}
+              />
+            } />
           </Routes>
         )}
       </main>
+
       {showForm && (
         <JobForm
           job={editJob}
