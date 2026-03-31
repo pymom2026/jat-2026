@@ -22,6 +22,22 @@ const BLOCKLIST = [
   'admin@rachelsballet.com', 'passport application status', 'passport services',
 ];
 
+// ── Allowlist ─────────────────────────────────────────────────────────────────
+
+const ALLOWLIST_SUBJECTS = [
+  'thank you for applying', 'thank you from', 'thanks for applying',
+  'hello from', 'interview scheduling', 'interview invitation',
+  'phone conversation with', 'phone screen',
+  'we received your application', 'your application',
+  'application received', 'application confirmation',
+  'application for', 'applied for', 'next steps', 'moving forward',
+  'offer letter', 'job offer', 'we regret', 'not moving forward',
+  'unfortunately', 'coding challenge', 'technical assessment', 'take-home',
+  'your job application', 'application update', 'application status',
+  "you've been referred", 'you have been referred', 'referred for the',
+  'keep track of your application',
+];
+
 // ── LinkedIn saved job leads ───────────────────────────────────────────────────
 const LEAD_SUBJECTS = [
   'is added!', 'saved job', 'job alert', 'jobs for you',
@@ -57,13 +73,18 @@ const REJECTION_PHRASES = [
 
 // ── Interview phrases ─────────────────────────────────────────────────────────
 const INTERVIEW_PHRASES = [
-  'schedule an interview', 'invite you to interview', 'interview invitation',
-  'interview request', 'phone screen', 'phone conversation', 'video interview',
-  'video call', 'coding challenge', 'technical assessment', 'take-home assignment',
-  'offer letter', 'job offer', 'we would like to speak with you',
+  'schedule an interview', 'invite you to interview',
+  'interview invitation', 'interview request',
+  'we would like to schedule', 'please schedule',
+  'phone screen with', 'phone conversation with',
+  'video interview', 'virtual interview',
+  'coding challenge', 'technical assessment', 'take-home assignment',
+  'offer letter', 'job offer',
+  'we would like to speak with you',
   'excited to move you forward', 'pleased to invite you',
-  'next round', 'final round', 'onsite interview', 'virtual interview',
+  'next round', 'final round', 'onsite interview',
   'meet with our team', 'chat with our team',
+  'we would like to set up', 'would you be available',
 ];
 
 // ── Applied / confirmed phrases (subject) ─────────────────────────────────────
@@ -79,11 +100,16 @@ const APPLIED_SUBJECTS = [
 
 // ── Real "In Review" status change phrases ────────────────────────────────────
 const IN_REVIEW_PHRASES = [
-  'application is under review', 'currently reviewing',
-  'your application is being reviewed', 'status has been updated',
-  'status changed to', 'moved to review', 'in progress',
-  'application is in review', 'actively reviewing',
-  'shortlisted', 'under consideration',
+  'application is under review',
+  'currently reviewing your application',
+  'your application is being reviewed',
+  'status has been updated to',
+  'status changed to in review',
+  'moved to review',
+  'application is in review',
+  'actively reviewing your profile',
+  'shortlisted for',
+  'under active consideration',
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -106,19 +132,19 @@ function detectStatus(subject, body) {
   const subjectLower = subject.toLowerCase();
   const text = (subject + ' ' + (body || '')).toLowerCase();
 
-  // Rejection always wins — even if subject says "thank you for applying"
+  // Rejection always wins
   if (REJECTION_PHRASES.some(p => text.includes(p))) return 'Rejected';
 
-  // Interview signals
+  // Specific interview signals only
   if (INTERVIEW_PHRASES.some(p => text.includes(p))) return 'Interview';
 
-  // Real status change to "In Review"
+  // Real status change to In Review
   if (IN_REVIEW_PHRASES.some(p => text.includes(p))) return 'In Review';
 
-  // Applied confirmation subjects → Applied (not In Review)
+  // Applied confirmation — auto-acknowledgements go here not In Review
   if (APPLIED_SUBJECTS.some(p => subjectLower.includes(p))) return 'Applied';
 
-  return null; // ambiguous — let Claude decide
+  return null; // ambiguous — send to Claude
 }
 
 function extractCompanyFromEmail(from) {
@@ -289,72 +315,50 @@ async function scanJobEmails(accessToken, afterTimestamp, fullScan = false) {
         continue;
       }
 
-      // Layer 3: Referred — body contains referral phrases
-      // But only if subject doesn't strongly indicate an interview
-      const hasInterviewSubject = INTERVIEW_PHRASES.some(p => email.subject.toLowerCase().includes(p));
-      if (!hasInterviewSubject && isReferred(email.subject, email.body)) {
-        console.log(`[Referred] ${email.subject}`);
-        jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Referred'));
-        continue;
-      }
-
-      // Layer 4: rule-based classification
-      const status = detectStatus(email.subject, email.body);
-      if (status !== null) {
-        console.log(`[Rule] ${status} | ${email.subject}`);
-        jobs.push(buildJob(
-          email,
-          extractCompanyFromEmail(email.from),
-          extractRoleFromSubject(email.subject),
-          status
-        ));
-        continue;
-      }
-
-      // Layer 5: ambiguous — send to Claude
-      console.log(`[Ambiguous] ${email.subject}`);
-      ambiguous.push(email);
-
-    } catch (err) {
-      console.error('Error fetching message:', msg.id, err.message);
-    }
+     // Layer 3: "Hello from" — needs body inspection to disambiguate
+const isHelloFrom = email.subject.toLowerCase().includes('hello from');
+if (isHelloFrom) {
+  if (isReferred(email.subject, email.body)) {
+    console.log(`[Referred] ${email.subject}`);
+    jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Referred'));
+    continue;
   }
-
-  // Process ambiguous emails with Claude in batches of 15
-  if (ambiguous.length > 0) {
-    console.log(`[Claude] Processing ${ambiguous.length} ambiguous emails...`);
-    const BATCH_SIZE = 15;
-    for (let i = 0; i < ambiguous.length; i += BATCH_SIZE) {
-      const batch = ambiguous.slice(i, i + BATCH_SIZE);
-      try {
-        const results = await classifyWithClaude(batch);
-        for (const result of results) {
-          if (!result.isJob || result.status === 'ignore') continue;
-          const email = batch[result.index];
-          if (!email) continue;
-          jobs.push(buildJob(
-            email,
-            result.company || extractCompanyFromEmail(email.from),
-            result.role || extractRoleFromSubject(email.subject),
-            result.status
-          ));
-        }
-      } catch (err) {
-        console.error('[Claude] Batch error:', err.message);
-      }
-    }
+  const hasInterview = INTERVIEW_PHRASES.some(p =>
+    (email.subject + ' ' + email.body).toLowerCase().includes(p)
+  );
+  if (hasInterview) {
+    console.log(`[Interview via Hello From] ${email.subject}`);
+    jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Interview'));
+    continue;
   }
-
-  // Deduplicate by Gmail message ID only
-  const seen = new Set();
-  const deduped = jobs.filter(j => {
-    if (seen.has(j.gmailId)) return false;
-    seen.add(j.gmailId);
-    return true;
-  });
-
-  console.log(`[Scan] ${deduped.length} jobs from ${messages.length} emails (${ambiguous.length} used Claude)`);
-  return deduped;
+  console.log(`[Ambiguous Hello From] ${email.subject}`);
+  ambiguous.push(email);
+  continue;
 }
 
-module.exports = { scanJobEmails };
+// Layer 4: Referred via body phrases (non "Hello from" subjects)
+const hasInterviewSubject = INTERVIEW_PHRASES.some(p =>
+  email.subject.toLowerCase().includes(p)
+);
+if (!hasInterviewSubject && isReferred(email.subject, email.body)) {
+  console.log(`[Referred] ${email.subject}`);
+  jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Referred'));
+  continue;
+}
+
+// Layer 5: rule-based classification
+const status = detectStatus(email.subject, email.body);
+if (status !== null) {
+  console.log(`[Rule] ${status} | ${email.subject}`);
+  jobs.push(buildJob(
+    email,
+    extractCompanyFromEmail(email.from),
+    extractRoleFromSubject(email.subject),
+    status
+  ));
+  continue;
+}
+
+// Layer 6: truly ambiguous — send to Claude
+console.log(`[Ambiguous] ${email.subject}`);
+ambiguous.push(email);
