@@ -88,8 +88,8 @@ a { color: inherit; text-decoration: none; }
 .insights-section { margin-top: 24px; }
 .insights-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .insights-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin: 0; }
-.btn-insights { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
-.btn-insights:hover { opacity: 0.9; }
+.btn-insights { background: #BA7517; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.btn-insights:hover { background: #854F0B; }
 .btn-insights:disabled { opacity: 0.6; cursor: not-allowed; }
 .insight-card { background: var(--color-background-secondary); border: 1px solid var(--color-border-tertiary); border-left: 3px solid #6366f1; border-radius: 8px; padding: 16px; }
 .insight-loading { font-size: 13px; color: var(--color-text-secondary); }
