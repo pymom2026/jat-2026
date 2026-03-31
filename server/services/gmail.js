@@ -1,9 +1,14 @@
 const { google } = require('googleapis');
+const Anthropic = require('@anthropic-ai/sdk').default;
 
 function getGmailClient(accessToken) {
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   return google.gmail({ version: 'v1', auth });
+}
+
+function getAnthropicClient() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
 // ── Blocklist ─────────────────────────────────────────────────────────────────
@@ -14,23 +19,10 @@ const BLOCKLIST = [
   'hilary chu', 'ballet', 'credit card', 'informed delivery',
   'communications@srvcouncilpta.org', 'info@srvef.ccsend.com',
   'subscriptions@seekingalpha.com', 'president@coyotecreekpta.com',
-  'admin@rachelsballet.com','Passport Application Status',
+  'admin@rachelsballet.com', 'passport application status', 'passport services',
 ];
 
-// ── Allowlist subjects ────────────────────────────────────────────────────────
-const ALLOWLIST_SUBJECTS = [
-  'thank you for applying', 'thank you from', 'thanks for applying',
-  'hello from', 'interview scheduling', 'interview invitation',
-  'phone conversation with', 'phone screen',
-  'we received your application', 'your application',
-  'application received', 'application confirmation',
-  'application for', 'applied for', 'next steps', 'moving forward',
-  'offer letter', 'job offer', 'we regret', 'not moving forward',
-  'unfortunately', 'coding challenge', 'technical assessment', 'take-home',
-  'your job application', 'application update', 'application status', "you've been referred", 'you have been referred', 'referred you for', 'referred for the',
-];
-
-// ── LinkedIn "saved job" / lead subjects ──────────────────────────────────────
+// ── LinkedIn saved job leads ───────────────────────────────────────────────────
 const LEAD_SUBJECTS = [
   'is added!', 'saved job', 'job alert', 'jobs for you',
   'recommended for you', 'take these next steps', 'new jobs matching',
@@ -38,30 +30,66 @@ const LEAD_SUBJECTS = [
   'your job search', 'based on your profile',
 ];
 
-// ── Rejection phrases (body + subject) ───────────────────────────────────────
+// ── Referred lead phrases (body) ──────────────────────────────────────────────
+const REFERRED_BODY_PHRASES = [
+  'we received your information from an employee',
+  'they thought you might be interested',
+  'referred you for',
+  'referred by',
+  'employee referral',
+  'was referred to us',
+  'your colleague',
+  'someone at our company',
+  'internal referral',
+];
+
+// ── Rejection phrases ─────────────────────────────────────────────────────────
 const REJECTION_PHRASES = [
   'unfortunately', 'we regret', 'not moving forward', 'unable to move forward',
   'decided to move forward with other', 'move ahead with other candidates',
   'will not be moving forward', 'after careful consideration',
-  'we have decided', 'not selected', 'position has been filled',
+  'we have decided not', 'not selected', 'position has been filled',
   'gone with another candidate', 'other candidates whose experience',
-  'not a match', 'not the right fit', 'wish you the best',
+  'not a match', 'not the right fit',
   'keep your resume on file', 'we will keep your information on file',
+  'have chosen to', 'chosen another', 'pursue other candidates',
 ];
 
-// ── Next steps / interview phrases ───────────────────────────────────────────
-const NEXT_STEPS_PHRASES = [
-  'interview', 'phone screen', 'phone conversation', 'video call',
-  'next steps', 'moving forward', 'coding challenge',
-  'technical assessment', 'take-home', 'offer letter', 'job offer',
-  'schedule a call', 'schedule time', 'we would like to speak',
-  'excited to move', 'pleased to invite',
+// ── Interview phrases ─────────────────────────────────────────────────────────
+const INTERVIEW_PHRASES = [
+  'schedule an interview', 'invite you to interview', 'interview invitation',
+  'interview request', 'phone screen', 'phone conversation', 'video interview',
+  'video call', 'coding challenge', 'technical assessment', 'take-home assignment',
+  'offer letter', 'job offer', 'we would like to speak with you',
+  'excited to move you forward', 'pleased to invite you',
+  'next round', 'final round', 'onsite interview', 'virtual interview',
+  'meet with our team', 'chat with our team',
+];
+
+// ── Applied / confirmed phrases (subject) ─────────────────────────────────────
+const APPLIED_SUBJECTS = [
+  'thank you for applying', 'thanks for applying',
+  'we received your application', 'your application',
+  'application received', 'application confirmation',
+  'application for', 'applied for',
+  'your job application', 'application update',
+  "you've been referred", 'you have been referred',
+  'referred for the', 'you were referred',
+];
+
+// ── Real "In Review" status change phrases ────────────────────────────────────
+const IN_REVIEW_PHRASES = [
+  'application is under review', 'currently reviewing',
+  'your application is being reviewed', 'status has been updated',
+  'status changed to', 'moved to review', 'in progress',
+  'application is in review', 'actively reviewing',
+  'shortlisted', 'under consideration',
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function isBlocked(email) {
   const lower = (email.from + ' ' + email.subject).toLowerCase();
-  return BLOCKLIST.some(term => lower.includes(term));
+  return BLOCKLIST.some(term => lower.includes(term.toLowerCase()));
 }
 
 function isLead(subject) {
@@ -69,21 +97,28 @@ function isLead(subject) {
   return LEAD_SUBJECTS.some(phrase => lower.includes(phrase));
 }
 
-function getAllowlistMatch(subject) {
-  const lower = subject.toLowerCase();
-  return ALLOWLIST_SUBJECTS.find(phrase => lower.includes(phrase)) || null;
+function isReferred(subject, body) {
+  const bodyLower = (body || '').toLowerCase();
+  return REFERRED_BODY_PHRASES.some(p => bodyLower.includes(p));
 }
 
 function detectStatus(subject, body) {
+  const subjectLower = subject.toLowerCase();
   const text = (subject + ' ' + (body || '')).toLowerCase();
 
-  // Rejection takes priority — even if subject says "thank you for applying"
+  // Rejection always wins — even if subject says "thank you for applying"
   if (REJECTION_PHRASES.some(p => text.includes(p))) return 'Rejected';
 
-  // Next steps / interview
-  if (NEXT_STEPS_PHRASES.some(p => text.includes(p))) return 'Interview';
+  // Interview signals
+  if (INTERVIEW_PHRASES.some(p => text.includes(p))) return 'Interview';
 
-  return 'In Review';
+  // Real status change to "In Review"
+  if (IN_REVIEW_PHRASES.some(p => text.includes(p))) return 'In Review';
+
+  // Applied confirmation subjects → Applied (not In Review)
+  if (APPLIED_SUBJECTS.some(p => subjectLower.includes(p))) return 'Applied';
+
+  return null; // ambiguous — let Claude decide
 }
 
 function extractCompanyFromEmail(from) {
@@ -115,9 +150,7 @@ function decodeBody(data) {
   if (!data) return '';
   try {
     return Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf-8');
-  } catch {
-    return '';
-  }
+  } catch { return ''; }
 }
 
 function extractBody(payload) {
@@ -149,13 +182,65 @@ function buildJob(email, company, role, status) {
   };
 }
 
+// ── Claude classification for ambiguous emails ────────────────────────────────
+async function classifyWithClaude(emails) {
+  if (emails.length === 0) return [];
+  const anthropic = getAnthropicClient();
+
+  const emailList = emails.map((e, i) =>
+    `[${i}] From: ${e.from}\nSubject: ${e.subject}\nBody (first 300 chars): ${(e.body || '').substring(0, 300)}`
+  ).join('\n\n');
+
+  console.log(`[Claude] Classifying ${emails.length} ambiguous emails...`);
+
+  const response = await anthropic.messages.create({
+    model: 'claude-haiku-4-5',
+    max_tokens: 1024,
+    messages: [{
+      role: 'user',
+      content: `You are classifying job-related emails. For each email determine:
+1. Is it a job application related email? (not spam, not unrelated)
+2. What is the status?
+
+Status options:
+- "Applied" — confirmation that application was submitted
+- "In Review" — company says they are actively reviewing (NOT just auto-acknowledgement)
+- "Interview" — interview scheduled, invited, or assessment sent
+- "Rejected" — declined or not moving forward
+- "Referred" — someone referred the person, not yet applied
+- "Leads" — saved job or job alert, not yet applied
+- "ignore" — not job related
+
+Respond ONLY with a JSON array. Each element must have:
+- "index": number
+- "isJob": true/false  
+- "status": one of the above (only if isJob=true)
+- "company": company name (only if isJob=true)
+- "role": job title (only if isJob=true)
+
+Emails:
+${emailList}
+
+JSON array only, no markdown, no explanation.`
+    }]
+  });
+
+  const text = response.content.find(b => b.type === 'text')?.text || '[]';
+  try {
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  } catch {
+    console.error('[Claude] Failed to parse:', text.substring(0, 200));
+    return [];
+  }
+}
+
 // ── Main scan ─────────────────────────────────────────────────────────────────
 const GMAIL_SEARCH_QUERY = [
-  '"application"', '"applied"', '"applying"','"interview"', '"offer"',
-  '"hiring"', '"recruiting"', '"position"', '"role"'
+  '"application"', '"applied"', '"applying"', '"interview"', '"offer"',
+  '"hiring"', '"recruiting"', '"position"', '"role"', '"referred"'
 ].join(' OR ');
 
-// Full scan starts from May 1 2025
 const FULL_SCAN_START = new Date('2025-05-01').getTime() / 1000;
 
 async function scanJobEmails(accessToken, afterTimestamp, fullScan = false) {
@@ -175,10 +260,10 @@ async function scanJobEmails(accessToken, afterTimestamp, fullScan = false) {
   if (messages.length === 0) return [];
 
   const jobs = [];
+  const ambiguous = []; // emails that need Claude
 
   for (const msg of messages) {
     try {
-      // Fetch full message to get body for better classification
       const msgRes = await gmail.users.messages.get({
         userId: 'me', id: msg.id, format: 'full'
       });
@@ -197,18 +282,26 @@ async function scanJobEmails(accessToken, afterTimestamp, fullScan = false) {
         continue;
       }
 
-      // Layer 2: LinkedIn leads / saved jobs
+      // Layer 2: LinkedIn saved jobs
       if (isLead(email.subject)) {
         console.log(`[Lead] ${email.subject}`);
         jobs.push(buildJob(email, extractCompanyFromEmail(email.from), email.subject.substring(0, 80), 'Leads'));
         continue;
       }
 
-      // Layer 3: allowlist match — classify using subject + body
-      const allowMatch = getAllowlistMatch(email.subject);
-      if (allowMatch) {
-        const status = detectStatus(email.subject, email.body);
-        console.log(`[Allow] ${status} | ${email.subject}`);
+      // Layer 3: Referred — body contains referral phrases
+      // But only if subject doesn't strongly indicate an interview
+      const hasInterviewSubject = INTERVIEW_PHRASES.some(p => email.subject.toLowerCase().includes(p));
+      if (!hasInterviewSubject && isReferred(email.subject, email.body)) {
+        console.log(`[Referred] ${email.subject}`);
+        jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Referred'));
+        continue;
+      }
+
+      // Layer 4: rule-based classification
+      const status = detectStatus(email.subject, email.body);
+      if (status !== null) {
+        console.log(`[Rule] ${status} | ${email.subject}`);
         jobs.push(buildJob(
           email,
           extractCompanyFromEmail(email.from),
@@ -218,22 +311,50 @@ async function scanJobEmails(accessToken, afterTimestamp, fullScan = false) {
         continue;
       }
 
-      console.log(`[Skip] ${email.subject}`);
+      // Layer 5: ambiguous — send to Claude
+      console.log(`[Ambiguous] ${email.subject}`);
+      ambiguous.push(email);
+
     } catch (err) {
       console.error('Error fetching message:', msg.id, err.message);
     }
   }
-  
-// Deduplicate only by Gmail message ID — keep all legitimate separate emails
-const seen = new Set();
-const deduped = jobs.filter(j => {
-  if (seen.has(j.gmailId)) return false;
-  seen.add(j.gmailId);
-  return true;
-});
-console.log(`[Scan] ${deduped.length} unique jobs from ${jobs.length} raw matches, ${messages.length} emails scanned`);
-return deduped;
-  
+
+  // Process ambiguous emails with Claude in batches of 15
+  if (ambiguous.length > 0) {
+    console.log(`[Claude] Processing ${ambiguous.length} ambiguous emails...`);
+    const BATCH_SIZE = 15;
+    for (let i = 0; i < ambiguous.length; i += BATCH_SIZE) {
+      const batch = ambiguous.slice(i, i + BATCH_SIZE);
+      try {
+        const results = await classifyWithClaude(batch);
+        for (const result of results) {
+          if (!result.isJob || result.status === 'ignore') continue;
+          const email = batch[result.index];
+          if (!email) continue;
+          jobs.push(buildJob(
+            email,
+            result.company || extractCompanyFromEmail(email.from),
+            result.role || extractRoleFromSubject(email.subject),
+            result.status
+          ));
+        }
+      } catch (err) {
+        console.error('[Claude] Batch error:', err.message);
+      }
+    }
+  }
+
+  // Deduplicate by Gmail message ID only
+  const seen = new Set();
+  const deduped = jobs.filter(j => {
+    if (seen.has(j.gmailId)) return false;
+    seen.add(j.gmailId);
+    return true;
+  });
+
+  console.log(`[Scan] ${deduped.length} jobs from ${messages.length} emails (${ambiguous.length} used Claude)`);
+  return deduped;
 }
 
 module.exports = { scanJobEmails };
