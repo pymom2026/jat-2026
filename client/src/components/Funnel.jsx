@@ -16,11 +16,11 @@ function Funnel({ jobs, allJobs }) {
   const pct = (n) => total > 0 ? Math.round((n / total) * 100) : 0
 
   const stages = [
-    { label: 'Applied', count: total, color: '#6366f1', width: 100 },
-    { label: 'In Review', count: inReview, color: '#f59e0b', width: Math.max(pct(inReview), 8) },
-    { label: 'Interview', count: interviewing, color: '#10b981', width: Math.max(pct(interviewing), 8) },
-    { label: 'Rejected', count: rejected, color: '#ef4444', width: Math.max(pct(rejected), 8) },
-  ]
+  { label: 'Applied', count: total, color: '#6366f1', width: 100 },
+  { label: 'In Review', count: inReview, color: '#f59e0b', width: inReview === 0 ? 0 : Math.max(pct(inReview), 8) },
+  { label: 'Interview', count: interviewing, color: '#10b981', width: interviewing === 0 ? 0 : Math.max(pct(interviewing), 8) },
+  { label: 'Rejected', count: rejected, color: '#ef4444', width: rejected === 0 ? 0 : Math.max(pct(rejected), 8) },
+]
 
   return (
     <div className="funnel-section">
