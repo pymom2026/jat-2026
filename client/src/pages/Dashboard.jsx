@@ -11,7 +11,7 @@ import Funnel from '../components/Funnel'
 const STATUS_LABELS = ['Total Applied', 'In Review', 'Interview', 'Rejected']
 const STATUS_KEYS = ['all', 'In Review', 'Interview', 'Rejected']
 const STATUS_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444']
-const EXCLUDED_FROM_COUNT = ['Leads', 'Duplicate']
+const EXCLUDED_FROM_COUNT = ['Leads', 'Referred', 'Duplicate']
 
 function formatDateShort(dateStr) {
   if (!dateStr) return ''
