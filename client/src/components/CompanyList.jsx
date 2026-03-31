@@ -9,13 +9,12 @@ const STATUS_DISPLAY = {
   'Referred': 'Referred',
 }
 
-const filtered = statusKey === 'all'
-  ? jobs.filter(j => !EXCLUDED_FROM_COUNT.includes(j.status))
-  : jobs.filter(j => j.status === statusKey)
+const EXCLUDED_FROM_COUNT = ['Leads', 'Referred', 'Duplicate']
 
 function CompanyList({ jobs, onEdit, onDelete }) {
   const { statusKey } = useParams()
   const navigate = useNavigate()
+
   const filtered = statusKey === 'all'
     ? jobs.filter(j => !EXCLUDED_FROM_COUNT.includes(j.status))
     : jobs.filter(j => j.status === statusKey)
@@ -53,7 +52,3 @@ function CompanyList({ jobs, onEdit, onDelete }) {
           ))}
         </div>
       )}
-    </div>
-  )
-}
-export default CompanyList
