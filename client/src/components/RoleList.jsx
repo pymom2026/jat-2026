@@ -6,6 +6,7 @@ const STATUS_COLORS = {
   'Interview': '#10b981',
   'Rejected': '#ef4444',
   'Leads': '#8b5cf6',
+  'Referred': '#f59e0b',
   'Duplicate': '#9ca3af',
 }
 
