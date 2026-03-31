@@ -29,7 +29,7 @@ function DashboardHome({ jobs, allJobs, fromDate, toDate, onRefresh, onAddJob })
 
   const activeJobs = jobs.filter(j => !EXCLUDED_FROM_COUNT.includes(j.status))
   const rejectedCount = activeJobs.filter(j => j.status === 'Rejected').length
-
+console.log('rejectedCount:', rejectedCount, 'activeJobs:', activeJobs.length)
   const counts = [
     activeJobs.length,
     activeJobs.filter(j => j.status === 'In Review').length,
