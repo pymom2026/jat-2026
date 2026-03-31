@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const STATUS_OPTIONS = ['Applied', 'In Review', 'Interview', 'Rejected']
+const STATUS_OPTIONS = ['Applied', 'In Review', 'Interview', 'Rejected', 'Leads', 'Referred', 'Duplicate']
 
 function JobForm({ job, onSave, onClose }) {
   const [form, setForm] = useState({
