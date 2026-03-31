@@ -26,6 +26,8 @@ async function clearGmailEntries(accessToken, sheetId) {
 router.post('/scan', async (req, res) => {
   try {
     const full = req.query.full === 'true';
+    const fromOverride = req.query.from || null;
+    const toOverride = req.query.to || null;
     const scanStartedAt = new Date().toISOString();
 
     if (full) {
@@ -33,7 +35,7 @@ router.post('/scan', async (req, res) => {
     }
 
     const lastScan = full ? null : getLastScan(req.user.id);
-    const scanned = await scanJobEmails(req.user.accessToken, lastScan, full);
+    const scanned = await scanJobEmails(req.user.accessToken, lastScan, full, fromOverride, toOverride);
 
     const existing = full ? [] : await getAllJobs(
       req.user.accessToken,
