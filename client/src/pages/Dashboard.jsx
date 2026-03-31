@@ -66,6 +66,7 @@ function DashboardHome({ jobs, allJobs, fromDate, onRefresh, onAddJob }) {
 function Dashboard({ user, setUser }) {
   const [allJobs, setAllJobs] = useState([])
   const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editJob, setEditJob] = useState(null)
@@ -91,9 +92,11 @@ function Dashboard({ user, setUser }) {
   }, [fetchJobs])
 
   // Apply date filter
-  const jobs = fromDate
-    ? allJobs.filter(j => j.dateApplied >= fromDate)
-    : allJobs
+  const jobs = allJobs.filter(j => {
+  if (fromDate && j.dateApplied < fromDate) return false
+  if (toDate && j.dateApplied > toDate) return false
+  return true
+})
 
   const handleLogout = async () => {
     await axios.get('/auth/logout')
@@ -104,7 +107,11 @@ function Dashboard({ user, setUser }) {
     setScanning(full ? 'full' : 'incremental')
     setScanResult(null)
     try {
-      const r = await axios.post(`/api/gmail/scan${full ? '?full=true' : ''}`)
+      const params = new URLSearchParams()
+      if (full) params.set('full', 'true')
+      if (fromDate) params.set('from', fromDate)
+      if (toDate) params.set('to', toDate)
+      const r = await axios.post(`/api/gmail/scan?${params.toString()}`)
       setScanResult({ ...r.data, full })
       setLastScan(new Date().toISOString())
       if (r.data.added > 0) fetchJobs()
@@ -150,15 +157,17 @@ const handleMarkDuplicate = async (job) => {
   return (
     <div className="app-layout">
       <Navbar
-        user={user}
-        onLogout={handleLogout}
-        onScan={() => runScan(false)}
-        onFullScan={() => runScan(true)}
-        scanning={scanning}
-        lastScan={lastScan}
-        fromDate={fromDate}
-        onFromDateChange={setFromDate}
-      />
+  user={user}
+  onLogout={handleLogout}
+  onScan={() => runScan(false)}
+  onFullScan={() => runScan(true)}
+  scanning={scanning}
+  lastScan={lastScan}
+  fromDate={fromDate}
+  toDate={toDate}
+  onFromDateChange={setFromDate}
+  onToDateChange={setToDate}
+  />
       {scanResult && (
         <div className={`scan-banner ${scanResult.error ? 'error' : 'success'}`}>
           {scanResult.error
