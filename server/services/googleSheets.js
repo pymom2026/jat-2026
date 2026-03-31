@@ -1,9 +1,16 @@
 const { google } = require('googleapis');
 
-function getSheetsClient(accessToken) {
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: accessToken });
-  return google.sheets({ version: 'v4', auth });
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET
+);
+
+async function getSheetsClient(accessToken, refreshToken) {
+  oauth2Client.setCredentials({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  return google.sheets({ version: 'v4', auth: oauth2Client });
 }
 
 const SHEET_RANGE = 'Sheet1!A:G';
@@ -24,8 +31,8 @@ async function ensureHeaders(sheets, sheetId) {
   }
 }
 
-async function getAllJobs(accessToken, sheetId) {
-  const sheets = getSheetsClient(accessToken);
+async function getAllJobs(accessToken, sheetId, refreshToken) {
+  const sheets = await getSheetsClient(accessToken, refreshToken);
   await ensureHeaders(sheets, sheetId);
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
@@ -45,11 +52,13 @@ async function getAllJobs(accessToken, sheetId) {
   }));
 }
 
-async function addJob(accessToken, sheetId, job) {
-  const sheets = getSheetsClient(accessToken);
+async function addJob(accessToken, sheetId, job, refreshToken) {
+  const sheets = await getSheetsClient(accessToken, refreshToken);
   const row = [
-    job.company, job.role, job.dateApplied || new Date().toISOString().split('T')[0],
-    job.status || 'Applied', job.source || '', job.notes || '', job.link || ''
+    job.company, job.role,
+    job.dateApplied || new Date().toISOString().split('T')[0],
+    job.status || 'Applied',
+    job.source || '', job.notes || '', job.link || ''
   ];
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
@@ -59,23 +68,25 @@ async function addJob(accessToken, sheetId, job) {
   });
 }
 
-async function addJobs(accessToken, sheetId, jobs) {
+async function addJobs(accessToken, sheetId, jobs, refreshToken) {
   if (!jobs.length) return;
-  const sheets = getSheetsClient(accessToken);
+  const sheets = await getSheetsClient(accessToken, refreshToken);
   const rows = jobs.map(job => [
-    job.company, job.role, job.dateApplied || new Date().toISOString().split('T')[0],
-    job.status || 'Applied', job.source || '', job.notes || '', job.link || ''
+    job.company, job.role,
+    job.dateApplied || new Date().toISOString().split('T')[0],
+    job.status || 'Applied',
+    job.source || '', job.notes || '', job.link || ''
   ]);
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
     range: SHEET_RANGE,
     valueInputOption: 'RAW',
-    requestBody: { values: rows }
+    requestBody: { values: [rows] }
   });
 }
 
-async function updateJob(accessToken, sheetId, rowIndex, job) {
-  const sheets = getSheetsClient(accessToken);
+async function updateJob(accessToken, sheetId, rowIndex, job, refreshToken) {
+  const sheets = await getSheetsClient(accessToken, refreshToken);
   const row = [
     job.company, job.role, job.dateApplied,
     job.status, job.source || '', job.notes || '', job.link || ''
@@ -88,19 +99,15 @@ async function updateJob(accessToken, sheetId, rowIndex, job) {
   });
 }
 
-async function deleteJob(accessToken, sheetId, rowIndex) {
-  return deleteJobs(accessToken, sheetId, [rowIndex]);
+async function deleteJob(accessToken, sheetId, rowIndex, refreshToken) {
+  return deleteJobs(accessToken, sheetId, [rowIndex], refreshToken);
 }
 
-// Delete multiple rows in a single API call. Rows are sorted descending so
-// higher indices are removed first, keeping lower row indices stable.
-async function deleteJobs(accessToken, sheetId, rowIndices) {
+async function deleteJobs(accessToken, sheetId, rowIndices, refreshToken) {
   if (!rowIndices.length) return;
-  const sheets = getSheetsClient(accessToken);
+  const sheets = await getSheetsClient(accessToken, refreshToken);
   const sheetMeta = await sheets.spreadsheets.get({ spreadsheetId: sheetId });
   const sheetIdNum = sheetMeta.data.sheets[0].properties.sheetId;
-
-  // Delete from bottom to top so indices don't shift mid-batch
   const sorted = [...rowIndices].sort((a, b) => b - a);
   const requests = sorted.map(rowIndex => ({
     deleteDimension: {
@@ -112,7 +119,6 @@ async function deleteJobs(accessToken, sheetId, rowIndices) {
       }
     }
   }));
-
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: sheetId,
     requestBody: { requests }
