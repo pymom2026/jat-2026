@@ -1,17 +1,25 @@
 const express = require('express');
 const requireAuth = require('../middleware/requireAuth');
 const { scanJobEmails } = require('../services/gmail');
-const { addJobs, getAllJobs, deleteJobs } = require('../services/googleSheets');
-const { getLastScan, setLastScan } = require('../services/scanState');
+const { addJobs, getAllJobs, deleteJobs, getLastScan, setLastScan } = require('../services/googleSheets');
 require('dotenv').config({ path: '../../.env' });
 
 const router = express.Router();
 
 router.use(requireAuth);
 
-router.get('/scan-status', (req, res) => {
-  const lastScan = getLastScan(req.user.id);
-  res.json({ lastScan });
+router.get('/scan-status', async (req, res) => {
+  try {
+    const lastScan = await getLastScan(
+      req.user.accessToken,
+      process.env.GOOGLE_SHEET_ID,
+      req.user.id,
+      req.user.refreshToken
+    );
+    res.json({ lastScan });
+  } catch (err) {
+    res.json({ lastScan: null });
+  }
 });
 
 async function clearGmailEntries(accessToken, sheetId) {
@@ -81,7 +89,13 @@ router.post('/scan', async (req, res) => {
       req.user.refreshToken
     );
 
-    setLastScan(req.user.id, scanStartedAt);
+    await setLastScan(
+  req.user.accessToken,
+  process.env.GOOGLE_SHEET_ID,
+  req.user.id,
+  scanStartedAt,
+  req.user.refreshToken
+);
     res.json({ scanned: scanned.length, added: newJobs.length, full, jobs: newJobs });
   } catch (err) {
     console.error(err);
