@@ -362,3 +362,47 @@ if (status !== null) {
 // Layer 6: truly ambiguous — send to Claude
 console.log(`[Ambiguous] ${email.subject}`);
 ambiguous.push(email);
+
+    } catch (err) {
+      console.error('Error fetching message:', msg.id, err.message);
+    }
+  }
+
+  // Process ambiguous emails with Claude in batches of 15
+  if (ambiguous.length > 0) {
+    console.log(`[Claude] Processing ${ambiguous.length} ambiguous emails...`);
+    const BATCH_SIZE = 15;
+    for (let i = 0; i < ambiguous.length; i += BATCH_SIZE) {
+      const batch = ambiguous.slice(i, i + BATCH_SIZE);
+      try {
+        const results = await classifyWithClaude(batch);
+        for (const result of results) {
+          if (!result.isJob || result.status === 'ignore') continue;
+          const email = batch[result.index];
+          if (!email) continue;
+          jobs.push(buildJob(
+            email,
+            result.company || extractCompanyFromEmail(email.from),
+            result.role || extractRoleFromSubject(email.subject),
+            result.status
+          ));
+        }
+      } catch (err) {
+        console.error('[Claude] Batch error:', err.message);
+      }
+    }
+  }
+
+  // Deduplicate by Gmail message ID only
+  const seen = new Set();
+  const deduped = jobs.filter(j => {
+    if (seen.has(j.gmailId)) return false;
+    seen.add(j.gmailId);
+    return true;
+  });
+
+  console.log(`[Scan] ${deduped.length} jobs from ${messages.length} emails (${ambiguous.length} used Claude)`);
+  return deduped;
+}
+
+module.exports = { scanJobEmails };
