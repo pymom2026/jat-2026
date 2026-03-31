@@ -269,17 +269,26 @@ const GMAIL_SEARCH_QUERY = [
 
 const FULL_SCAN_START = new Date('2025-05-01').getTime() / 1000;
 
-async function scanJobEmails(accessToken, afterTimestamp, fullScan = false) {
+async function scanJobEmails(accessToken, afterTimestamp, fullScan = false, fromOverride = null, toOverride = null) {
   const gmail = getGmailClient(accessToken);
 
   let query = GMAIL_SEARCH_QUERY;
-  const afterEpoch = fullScan
+  const afterEpoch = fromOverride
+  ? Math.floor(new Date(fromOverride).getTime() / 1000)
+  : fullScan
     ? FULL_SCAN_START
     : afterTimestamp
       ? Math.floor(new Date(afterTimestamp).getTime() / 1000)
       : null;
 
-  if (afterEpoch) query = `(${query}) after:${afterEpoch}`;
+const beforeEpoch = toOverride
+  ? Math.floor(new Date(toOverride).getTime() / 1000)
+  : null;
+
+if (afterEpoch) query = `(${query}) after:${afterEpoch}`;
+if (beforeEpoch) query = `${query} before:${beforeEpoch}`;
+
+  
 
   const listRes = await gmail.users.messages.list({ userId: 'me', q: query, maxResults: 200 });
   const messages = listRes.data.messages || [];
