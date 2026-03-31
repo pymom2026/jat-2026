@@ -5,10 +5,13 @@ const STATUS_DISPLAY = {
   'In Review': 'In Review',
   'Interview': 'Interview',
   'Rejected': 'Rejected',
-  'Leads': 'Leads',
+  'Leads': 'Saved Jobs',
+  'Referred': 'Referred',
 }
 
-const EXCLUDED_FROM_COUNT = ['Leads', 'Duplicate']
+const filtered = statusKey === 'all'
+  ? jobs.filter(j => !EXCLUDED_FROM_COUNT.includes(j.status))
+  : jobs.filter(j => j.status === statusKey)
 
 function CompanyList({ jobs, onEdit, onDelete }) {
   const { statusKey } = useParams()
