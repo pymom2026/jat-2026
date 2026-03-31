@@ -4,12 +4,15 @@ const { getAllJobs, addJob, updateJob, deleteJob } = require('../services/google
 require('dotenv').config({ path: '../../.env' });
 
 const router = express.Router();
-
 router.use(requireAuth);
 
 router.get('/', async (req, res) => {
   try {
-    const jobs = await getAllJobs(req.user.accessToken, process.env.GOOGLE_SHEET_ID);
+    const jobs = await getAllJobs(
+      req.user.accessToken,
+      process.env.GOOGLE_SHEET_ID,
+      req.user.refreshToken
+    );
     res.json(jobs);
   } catch (err) {
     console.error(err);
@@ -19,7 +22,12 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    await addJob(req.user.accessToken, process.env.GOOGLE_SHEET_ID, req.body);
+    await addJob(
+      req.user.accessToken,
+      process.env.GOOGLE_SHEET_ID,
+      req.body,
+      req.user.refreshToken
+    );
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -29,7 +37,13 @@ router.post('/', async (req, res) => {
 
 router.put('/:rowIndex', async (req, res) => {
   try {
-    await updateJob(req.user.accessToken, process.env.GOOGLE_SHEET_ID, parseInt(req.params.rowIndex), req.body);
+    await updateJob(
+      req.user.accessToken,
+      process.env.GOOGLE_SHEET_ID,
+      parseInt(req.params.rowIndex),
+      req.body,
+      req.user.refreshToken
+    );
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -39,7 +53,12 @@ router.put('/:rowIndex', async (req, res) => {
 
 router.delete('/:rowIndex', async (req, res) => {
   try {
-    await deleteJob(req.user.accessToken, process.env.GOOGLE_SHEET_ID, parseInt(req.params.rowIndex));
+    await deleteJob(
+      req.user.accessToken,
+      process.env.GOOGLE_SHEET_ID,
+      parseInt(req.params.rowIndex),
+      req.user.refreshToken
+    );
     res.json({ success: true });
   } catch (err) {
     console.error(err);
