@@ -20,29 +20,52 @@ function formatDateShort(dateStr) {
   return `${months[parseInt(m,10)-1]} ${parseInt(d,10)}, ${y}`
 }
 
-function DashboardHome({ jobs, allJobs, fromDate, onRefresh, onAddJob }) {
+function DashboardHome({ jobs, allJobs, fromDate, toDate, onRefresh, onAddJob }) {
   const navigate = useNavigate()
+  const [insight, setInsight] = useState(null)
+  const [insightLoading, setInsightLoading] = useState(false)
+  const [insightError, setInsightError] = useState(null)
+  const [showInsight, setShowInsight] = useState(false)
 
   const activeJobs = jobs.filter(j => !EXCLUDED_FROM_COUNT.includes(j.status))
+  const rejectedCount = activeJobs.filter(j => j.status === 'Rejected').length
+
   const counts = [
     activeJobs.length,
     activeJobs.filter(j => j.status === 'In Review').length,
     activeJobs.filter(j => j.status === 'Interview').length,
-    activeJobs.filter(j => j.status === 'Rejected').length,
-]
+    rejectedCount,
+  ]
+
+  const fetchInsight = async () => {
+    setInsightLoading(true)
+    setInsightError(null)
+    setShowInsight(true)
+    try {
+      const r = await axios.post('/api/jobs/insights')
+      setInsight(r.data)
+    } catch (err) {
+      setInsightError('Failed to get insights. Try again.')
+    } finally {
+      setInsightLoading(false)
+    }
+  }
+
   return (
     <div className="dashboard-home">
       <div className="dashboard-header">
         <h2>Dashboard</h2>
         <div className="dashboard-actions">
-          <button className="btn-secondary" onClick={onRefresh}>Refresh</button>
-          <button className="btn-primary" onClick={onAddJob}>+ Add Job</button>
+          <button className="btn-secondary" onClick={onRefresh} title="Refresh job list">Refresh</button>
+          <button className="btn-primary" onClick={onAddJob} title="Manually add a job application">+ Add Job</button>
         </div>
       </div>
 
-      {fromDate && (
+      {(fromDate || toDate) && (
         <div className="filter-notice">
-          Showing {jobs.length} of {allJobs.length} applications since {formatDateShort(fromDate)}
+          Showing {activeJobs.length} of {allJobs.filter(j => !EXCLUDED_FROM_COUNT.includes(j.status)).length} applications
+          {fromDate && ` from ${formatDateShort(fromDate)}`}
+          {toDate && ` to ${formatDateShort(toDate)}`}
         </div>
       )}
 
@@ -59,10 +82,48 @@ function DashboardHome({ jobs, allJobs, fromDate, onRefresh, onAddJob }) {
       </div>
 
       <Funnel jobs={jobs} allJobs={allJobs} />
+
+      {rejectedCount >= 3 && (
+        <div className="insights-section">
+          <div className="insights-header">
+            <h3 className="insights-title">Rejection insights</h3>
+            <button
+              className="btn-insights"
+              onClick={fetchInsight}
+              disabled={insightLoading}
+              title="Use AI to analyze your rejection patterns"
+            >
+              {insightLoading ? '⏳ Analyzing...' : '✦ Get insights'}
+            </button>
+          </div>
+
+          {showInsight && (
+            <div className="insight-card">
+              {insightLoading && (
+                <div className="insight-loading">Analyzing {rejectedCount} rejections...</div>
+              )}
+              {insightError && (
+                <div className="insight-error">{insightError}</div>
+              )}
+              {insight && !insightLoading && (
+                <>
+                  <div className="insight-text">{insight.insight}</div>
+                  <div className="insight-meta">
+                    Based on {insight.count} rejections
+                    <button
+                      className="insight-dismiss"
+                      onClick={() => { setShowInsight(false); setInsight(null) }}
+                    >dismiss</button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
-
 function Dashboard({ user, setUser }) {
   const [allJobs, setAllJobs] = useState([])
   const [fromDate, setFromDate] = useState('')
