@@ -28,27 +28,58 @@ router.post('/scan', async (req, res) => {
     const full = req.query.full === 'true';
     const scanStartedAt = new Date().toISOString();
 
-    // Full scan: wipe existing Gmail entries first, then re-import clean
     if (full) {
-      await clearGmailEntries(req.user.accessToken, process.env.GOOGLE_SHEET_ID);
+      await clearGmailEntries(req.user.accessToken, process.env.GOOGLE_SHEET_ID, req.user.refreshToken);
     }
 
     const lastScan = full ? null : getLastScan(req.user.id);
-    const scanned = await scanJobEmails(req.user.accessToken, lastScan);
+    const scanned = await scanJobEmails(req.user.accessToken, lastScan, full);
 
-    // For incremental: deduplicate against what's already in the sheet
-    // For full: sheet was just cleared so everything is new
-    const existing = full ? [] : await getAllJobs(req.user.accessToken, process.env.GOOGLE_SHEET_ID);
-    const existingKeys = new Set(existing.map(j => `${j.company.toLowerCase()}|${j.role.toLowerCase()}`));
+    const existing = full ? [] : await getAllJobs(
+      req.user.accessToken,
+      process.env.GOOGLE_SHEET_ID,
+      req.user.refreshToken
+    );
+
+    const existingKeys = new Set(
+      existing.map(j => `${j.company.toLowerCase()}|${j.role.toLowerCase()}`)
+    );
 
     const newJobs = scanned.filter(j => {
       const key = `${j.company.toLowerCase()}|${j.role.toLowerCase()}`;
       return !existingKeys.has(key);
     });
 
-    await addJobs(req.user.accessToken, process.env.GOOGLE_SHEET_ID, newJobs, req.user.refreshToken);
-    setLastScan(req.user.id, scanStartedAt);
+    // If a company now has an application email, remove its Referred entry
+    const newApplicationCompanies = new Set(
+      newJobs
+        .filter(j => !['Leads', 'Referred'].includes(j.status))
+        .map(j => j.company.toLowerCase())
+    );
 
+    const referredToRemove = existing.filter(j =>
+      j.status === 'Referred' &&
+      newApplicationCompanies.has(j.company.toLowerCase())
+    );
+
+    if (referredToRemove.length > 0) {
+      await deleteJobs(
+        req.user.accessToken,
+        process.env.GOOGLE_SHEET_ID,
+        referredToRemove.map(j => j.rowIndex),
+        req.user.refreshToken
+      );
+      console.log(`[Scan] Removed ${referredToRemove.length} Referred entries now tracked as applications`);
+    }
+
+    await addJobs(
+      req.user.accessToken,
+      process.env.GOOGLE_SHEET_ID,
+      newJobs,
+      req.user.refreshToken
+    );
+
+    setLastScan(req.user.id, scanStartedAt);
     res.json({ scanned: scanned.length, added: newJobs.length, full, jobs: newJobs });
   } catch (err) {
     console.error(err);
