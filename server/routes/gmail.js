@@ -46,7 +46,7 @@ router.post('/scan', async (req, res) => {
       return !existingKeys.has(key);
     });
 
-    await addJobs(req.user.accessToken, process.env.GOOGLE_SHEET_ID, newJobs);
+    await addJobs(req.user.accessToken, process.env.GOOGLE_SHEET_ID, newJobs, req.user.refreshToken);
     setLastScan(req.user.id, scanStartedAt);
 
     res.json({ scanned: scanned.length, added: newJobs.length, full, jobs: newJobs });
