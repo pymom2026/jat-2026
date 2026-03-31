@@ -117,7 +117,18 @@ console.log('rejectedCount:', rejectedCount, 'activeJobs:', activeJobs.length)
           )}
           {insight && !insightLoading && (
             <>
-              <div className="insight-text">{insight.insight}</div>
+              <div className="insight-text">
+  {insight.insight.split('\n').filter(Boolean).map((line, i) => {
+    const parts = line.split(/\*\*(.*?)\*\*/g)
+    const rendered = parts.map((part, j) =>
+      j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+    )
+    if (line.startsWith('#')) {
+      return <p key={i} style={{ fontWeight: 500, marginBottom: 6 }}>{line.replace(/^#+\s*/, '')}</p>
+    }
+    return <p key={i}>{rendered}</p>
+  })}
+</div>
               <div className="insight-meta">
                 Based on {insight.count} rejections
                 <button
