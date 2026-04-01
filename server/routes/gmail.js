@@ -74,9 +74,9 @@ router.post('/scan', async (req, res) => {
     );
 
     const referredToRemove = existing.filter(j =>
-      j.status === 'Referred' &&
-      newApplicationCompanies.has(j.company.toLowerCase())
-    );
+    ['Referred', 'Leads'].includes(j.status) &&
+    newApplicationCompanies.has(j.company.toLowerCase())
+  );
 
     if (referredToRemove.length > 0) {
       await deleteJobs(
