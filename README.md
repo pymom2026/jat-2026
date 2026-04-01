@@ -6,7 +6,7 @@ A full-stack web app that automatically scans your Gmail for job application ema
 
 ## Features
 
-- **Gmail auto-scan** — scans your inbox for job-related emails using a multi-layer classification engine
+- **Gmail scan** — scans your inbox for job-related emails using a multi-layer classification engine
 - **Smart classification** — rule-based detection with Claude AI fallback for ambiguous emails:
   - Rejection detection (catches rejections even when subject says "Thank you for applying")
   - Interview detection using specific scheduling phrases
