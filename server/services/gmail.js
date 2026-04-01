@@ -66,9 +66,9 @@ const REJECTION_PHRASES = [
   'will not be moving forward', 'after careful consideration',
   'we have decided not', 'not selected', 'position has been filled',
   'gone with another candidate', 'other candidates whose experience',
-  'not a match', 'not the right fit',
+  'not the right fit for this role', 'not a match for this position',
   'keep your resume on file', 'we will keep your information on file',
-  'have chosen to', 'chosen another', 'pursue other candidates',
+  'have chosen to', 'chosen another', 'pursue other candidates', 'other positions'
 ];
 
 // ── Interview phrases ─────────────────────────────────────────────────────────
