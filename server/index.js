@@ -4,6 +4,7 @@ const session = require('express-session');
 const passport = require('passport');
 const cors = require('cors');
 const path = require('path');
+const { getUserSheetId } = require('./services/userConfig');
 
 require('./routes/auth');
 const authRouter = require('./routes/auth');
@@ -23,6 +24,24 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
+
+// Middleware to load sheetId into session for authenticated users
+app.use(async (req, res, next) => {
+  if (req.isAuthenticated() && !req.user.sheetId) {
+    try {
+      const sheetId = await getUserSheetId(
+        req.user.accessToken,
+        req.user.refreshToken,
+        req.user.id
+      );
+      if (sheetId) req.user.sheetId = sheetId;
+    } catch (err) {
+      console.error('Error loading sheetId:', err.message);
+    }
+  }
+  next();
+});
+
 app.use('/auth', authRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/gmail', gmailRouter);
