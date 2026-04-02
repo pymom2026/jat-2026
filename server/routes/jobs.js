@@ -1,14 +1,46 @@
 const express = require('express');
 const requireAuth = require('../middleware/requireAuth');
 const { getAllJobs, addJob, updateJob, deleteJob } = require('../services/googleSheets');
+const { getUserSheetId, setUserSheetId } = require('../services/userConfig');
 require('dotenv').config({ path: '../../.env' });
 
 const router = express.Router();
 router.use(requireAuth);
 
 function getSheetId(req) {
-  return req.headers['x-sheet-id'] || process.env.GOOGLE_SHEET_ID;
+  return req.user.sheetId || req.headers['x-sheet-id'] || process.env.GOOGLE_SHEET_ID;
 }
+
+router.get('/my-sheet', async (req, res) => {
+  try {
+    const sheetId = await getUserSheetId(
+      req.user.accessToken,
+      req.user.refreshToken,
+      req.user.id
+    );
+    res.json({ sheetId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/set-sheet', async (req, res) => {
+  try {
+    const { sheetId } = req.body;
+    if (!sheetId) return res.status(400).json({ error: 'sheetId required' });
+    await setUserSheetId(
+      req.user.accessToken,
+      req.user.refreshToken,
+      req.user.id,
+      sheetId
+    );
+    // Also attach to session so middleware picks it up immediately
+    req.user.sheetId = sheetId;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {
@@ -137,6 +169,17 @@ router.post('/setup-sheet', async (req, res) => {
         values: [['Company', 'Role', 'Date Applied', 'Status', 'Source', 'Notes', 'Link']]
       }
     });
+
+    // Save sheetId to UserConfig
+    await setUserSheetId(
+      req.user.accessToken,
+      req.user.refreshToken,
+      req.user.id,
+      sheetId
+    );
+
+    // Attach to session immediately
+    req.user.sheetId = sheetId;
 
     res.json({
       sheetId,
