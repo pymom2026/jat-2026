@@ -68,7 +68,15 @@ const REJECTION_PHRASES = [
   'gone with another candidate', 'other candidates whose experience',
   'not the right fit for this role', 'not a match for this position',
   'keep your resume on file', 'we will keep your information on file',
-  'have chosen to', 'chosen another', 'pursue other candidates', 'other positions'
+  'have chosen to', 'chosen another', 'pursue other candidates', 'other positions', 'decided to pursue other',
+'decided to pursue other candidate',
+'wish you the very best',
+'encourage you to check back',
+'hope you keep',
+'we have chosen to move forward with other',
+'we will not be moving forward',
+'after reviewing your background',
+'we are unable to move forward',
 ];
 
 // ── Interview phrases ─────────────────────────────────────────────────────────
