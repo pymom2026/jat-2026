@@ -7,6 +7,7 @@ import CompanyList from '../components/CompanyList'
 import RoleList from '../components/RoleList'
 import JobForm from '../components/JobForm'
 import Funnel from '../components/Funnel'
+import SetupScreen from './SetupScreen'
 
 const STATUS_LABELS = ['Total Applied', 'In Review', 'Interview', 'Rejected']
 const STATUS_KEYS = ['all', 'In Review', 'Interview', 'Rejected']
@@ -29,7 +30,7 @@ function DashboardHome({ jobs, allJobs, fromDate, toDate, onRefresh, onAddJob })
 
   const activeJobs = jobs.filter(j => !EXCLUDED_FROM_COUNT.includes(j.status))
   const rejectedCount = activeJobs.filter(j => j.status === 'Rejected').length
-console.log('rejectedCount:', rejectedCount, 'activeJobs:', activeJobs.length)
+
   const counts = [
     activeJobs.length,
     activeJobs.filter(j => j.status === 'In Review').length,
@@ -63,16 +64,14 @@ console.log('rejectedCount:', rejectedCount, 'activeJobs:', activeJobs.length)
           >
             Refresh
           </button>
-          
           <button
-              className="btn-insights"
-              onClick={fetchInsight}
-              disabled={insightLoading}
-              title="Use AI to analyze your rejection patterns"
-            >
-              {insightLoading ? '⏳ Analyzing...' : '✦ Get insights'}
+            className="btn-insights"
+            onClick={fetchInsight}
+            disabled={insightLoading}
+            title="Use AI to analyze your rejection patterns"
+          >
+            {insightLoading ? '⏳ Analyzing...' : '✦ Get insights'}
           </button>
-          
           <button
             className="btn-primary"
             onClick={onAddJob}
@@ -118,17 +117,17 @@ console.log('rejectedCount:', rejectedCount, 'activeJobs:', activeJobs.length)
           {insight && !insightLoading && (
             <>
               <div className="insight-text">
-  {insight.insight.split('\n').filter(Boolean).map((line, i) => {
-    const parts = line.split(/\*\*(.*?)\*\*/g)
-    const rendered = parts.map((part, j) =>
-      j % 2 === 1 ? <strong key={j}>{part}</strong> : part
-    )
-    if (line.startsWith('#')) {
-      return <p key={i} style={{ fontWeight: 500, marginBottom: 6 }}>{line.replace(/^#+\s*/, '')}</p>
-    }
-    return <p key={i}>{rendered}</p>
-  })}
-</div>
+                {insight.insight.split('\n').filter(Boolean).map((line, i) => {
+                  const parts = line.split(/\*\*(.*?)\*\*/g)
+                  const rendered = parts.map((part, j) =>
+                    j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+                  )
+                  if (line.startsWith('#')) {
+                    return <p key={i} style={{ fontWeight: 500, marginBottom: 6 }}>{line.replace(/^#+\s*/, '')}</p>
+                  }
+                  return <p key={i}>{rendered}</p>
+                })}
+              </div>
               <div className="insight-meta">
                 Based on {insight.count} rejections
                 <button
@@ -156,6 +155,17 @@ function Dashboard({ user, setUser }) {
   const [scanning, setScanning] = useState(null)
   const [scanResult, setScanResult] = useState(null)
   const [lastScan, setLastScan] = useState(null)
+  const [sheetId, setSheetId] = useState(() => localStorage.getItem('sheetId') || '')
+
+  // Attach sheetId to every axios request
+  useEffect(() => {
+    const interceptor = axios.interceptors.request.use(config => {
+      const id = localStorage.getItem('sheetId')
+      if (id) config.headers['x-sheet-id'] = id
+      return config
+    })
+    return () => axios.interceptors.request.eject(interceptor)
+  }, [])
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -170,22 +180,40 @@ function Dashboard({ user, setUser }) {
   }, [])
 
   useEffect(() => {
+    if (!sheetId) return
     fetchJobs()
     axios.get('/api/gmail/scan-status')
       .then(r => setLastScan(r.data.lastScan))
       .catch(() => {})
-  }, [fetchJobs])
+  }, [fetchJobs, sheetId])
+
+  const handleSheetSetup = (id) => {
+    localStorage.setItem('sheetId', id)
+    setSheetId(id)
+  }
+
+  const handleLogout = async () => {
+    await axios.get('/auth/logout')
+    localStorage.removeItem('sheetId')
+    setUser(null)
+  }
+
+  // Show setup screen if no sheet configured
+  if (!sheetId) {
+    return (
+      <SetupScreen
+        user={user}
+        onComplete={handleSheetSetup}
+        onLogout={handleLogout}
+      />
+    )
+  }
 
   const jobs = allJobs.filter(j => {
     if (fromDate && j.dateApplied < fromDate) return false
     if (toDate && j.dateApplied > toDate) return false
     return true
   })
-
-  const handleLogout = async () => {
-    await axios.get('/auth/logout')
-    setUser(null)
-  }
 
   const runScan = async (full = false) => {
     setScanning(full ? 'full' : 'incremental')
