@@ -5,14 +5,17 @@ const { addJobs, getAllJobs, deleteJobs, getLastScan, setLastScan } = require('.
 require('dotenv').config({ path: '../../.env' });
 
 const router = express.Router();
-
 router.use(requireAuth);
+
+function getSheetId(req) {
+  return req.headers['x-sheet-id'] || process.env.GOOGLE_SHEET_ID;
+}
 
 router.get('/scan-status', async (req, res) => {
   try {
     const lastScan = await getLastScan(
       req.user.accessToken,
-      process.env.GOOGLE_SHEET_ID,
+      getSheetId(req),
       req.user.id,
       req.user.refreshToken
     );
@@ -22,11 +25,11 @@ router.get('/scan-status', async (req, res) => {
   }
 });
 
-async function clearGmailEntries(accessToken, sheetId) {
-  const all = await getAllJobs(accessToken, sheetId);
+async function clearGmailEntries(accessToken, sheetId, refreshToken) {
+  const all = await getAllJobs(accessToken, sheetId, refreshToken);
   const gmailRows = all.filter(j => j.source === 'Gmail');
   if (gmailRows.length > 0) {
-    await deleteJobs(accessToken, sheetId, gmailRows.map(j => j.rowIndex));
+    await deleteJobs(accessToken, sheetId, gmailRows.map(j => j.rowIndex), refreshToken);
   }
   return gmailRows.length;
 }
@@ -37,23 +40,30 @@ router.post('/scan', async (req, res) => {
     const fromOverride = req.query.from || null;
     const toOverride = req.query.to || null;
     const scanStartedAt = new Date().toISOString();
+    const sheetId = getSheetId(req);
 
     if (full) {
-      await clearGmailEntries(req.user.accessToken, process.env.GOOGLE_SHEET_ID, req.user.refreshToken);
+      await clearGmailEntries(req.user.accessToken, sheetId, req.user.refreshToken);
     }
 
     const lastScan = full ? null : await getLastScan(
-  req.user.accessToken,
-  process.env.GOOGLE_SHEET_ID,
-  req.user.id,
-  req.user.refreshToken
-);
-    
-    const scanned = await scanJobEmails(req.user.accessToken, lastScan, full, fromOverride, toOverride);
+      req.user.accessToken,
+      sheetId,
+      req.user.id,
+      req.user.refreshToken
+    );
+
+    const scanned = await scanJobEmails(
+      req.user.accessToken,
+      lastScan,
+      full,
+      fromOverride,
+      toOverride
+    );
 
     const existing = full ? [] : await getAllJobs(
       req.user.accessToken,
-      process.env.GOOGLE_SHEET_ID,
+      sheetId,
       req.user.refreshToken
     );
 
@@ -66,7 +76,6 @@ router.post('/scan', async (req, res) => {
       return !existingKeys.has(key);
     });
 
-    // If a company now has an application email, remove its Referred entry
     const newApplicationCompanies = new Set(
       newJobs
         .filter(j => !['Leads', 'Referred'].includes(j.status))
@@ -74,34 +83,35 @@ router.post('/scan', async (req, res) => {
     );
 
     const referredToRemove = existing.filter(j =>
-    ['Referred', 'Leads'].includes(j.status) &&
-    newApplicationCompanies.has(j.company.toLowerCase())
-  );
+      ['Referred', 'Leads'].includes(j.status) &&
+      newApplicationCompanies.has(j.company.toLowerCase())
+    );
 
     if (referredToRemove.length > 0) {
       await deleteJobs(
         req.user.accessToken,
-        process.env.GOOGLE_SHEET_ID,
+        sheetId,
         referredToRemove.map(j => j.rowIndex),
         req.user.refreshToken
       );
-      console.log(`[Scan] Removed ${referredToRemove.length} Referred entries now tracked as applications`);
+      console.log(`[Scan] Removed ${referredToRemove.length} Referred/Leads entries now tracked as applications`);
     }
 
     await addJobs(
       req.user.accessToken,
-      process.env.GOOGLE_SHEET_ID,
+      sheetId,
       newJobs,
       req.user.refreshToken
     );
 
     await setLastScan(
-  req.user.accessToken,
-  process.env.GOOGLE_SHEET_ID,
-  req.user.id,
-  scanStartedAt,
-  req.user.refreshToken
-);
+      req.user.accessToken,
+      sheetId,
+      req.user.id,
+      scanStartedAt,
+      req.user.refreshToken
+    );
+
     res.json({ scanned: scanned.length, added: newJobs.length, full, jobs: newJobs });
   } catch (err) {
     console.error(err);
