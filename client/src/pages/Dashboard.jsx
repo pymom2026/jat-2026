@@ -156,6 +156,7 @@ function Dashboard({ user, setUser }) {
   const [scanResult, setScanResult] = useState(null)
   const [lastScan, setLastScan] = useState(null)
   const [sheetId, setSheetId] = useState(() => localStorage.getItem('sheetId') || '')
+  const [checkingSheet, setCheckingSheet] = useState(true)
 
   // Attach sheetId to every axios request
   useEffect(() => {
@@ -165,6 +166,19 @@ function Dashboard({ user, setUser }) {
       return config
     })
     return () => axios.interceptors.request.eject(interceptor)
+  }, [])
+
+  // Check server for sheetId on every login
+  useEffect(() => {
+    axios.get('/api/jobs/my-sheet')
+      .then(r => {
+        if (r.data.sheetId) {
+          localStorage.setItem('sheetId', r.data.sheetId)
+          setSheetId(r.data.sheetId)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setCheckingSheet(false))
   }, [])
 
   const fetchJobs = useCallback(async () => {
@@ -187,26 +201,19 @@ function Dashboard({ user, setUser }) {
       .catch(() => {})
   }, [fetchJobs, sheetId])
 
-  const handleSheetSetup = (id) => {
+  const handleSheetSetup = async (id) => {
     localStorage.setItem('sheetId', id)
     setSheetId(id)
+    try {
+      await axios.post('/api/jobs/set-sheet', { sheetId: id })
+    } catch (err) {
+      console.error('Failed to save sheetId to server:', err.message)
+    }
   }
 
   const handleLogout = async () => {
     await axios.get('/auth/logout')
-    localStorage.removeItem('sheetId')
     setUser(null)
-  }
-
-  // Show setup screen if no sheet configured
-  if (!sheetId) {
-    return (
-      <SetupScreen
-        user={user}
-        onComplete={handleSheetSetup}
-        onLogout={handleLogout}
-      />
-    )
   }
 
   const jobs = allJobs.filter(j => {
@@ -266,6 +273,22 @@ function Dashboard({ user, setUser }) {
     } catch (err) {
       alert('Error marking duplicate: ' + err.message)
     }
+  }
+
+  // Show loading while checking server for sheetId
+  if (checkingSheet) {
+    return <div className="loading">Loading...</div>
+  }
+
+  // Show setup screen if no sheet configured
+  if (!sheetId) {
+    return (
+      <SetupScreen
+        user={user}
+        onComplete={handleSheetSetup}
+        onLogout={handleLogout}
+      />
+    )
   }
 
   return (
