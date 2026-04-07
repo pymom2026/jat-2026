@@ -22,8 +22,16 @@ const BLOCKLIST = [
   'admin@rachelsballet.com', 'passport application status', 'passport services',
 ];
 
-// ── Allowlist ─────────────────────────────────────────────────────────────────
+// ── False interview subjects (admin/setup emails that look like interviews) ────
+const FALSE_INTERVIEW_SUBJECTS = [
+  'account setup', 'complete your profile', 'candidate home',
+  'create your account', 'set up your account', 'complete your account',
+  'background check', 'verify your identity', 'complete your candidate',
+  'action required', 'please complete', 'next step: complete',
+  'have you completed', 'profile setup', 'candidate portal',
+];
 
+// ── Allowlist subjects ────────────────────────────────────────────────────────
 const ALLOWLIST_SUBJECTS = [
   'thank you for applying', 'thank you from', 'thanks for applying',
   'hello from', 'interview scheduling', 'interview invitation',
@@ -68,15 +76,12 @@ const REJECTION_PHRASES = [
   'gone with another candidate', 'other candidates whose experience',
   'not the right fit for this role', 'not a match for this position',
   'keep your resume on file', 'we will keep your information on file',
-  'have chosen to', 'chosen another', 'pursue other candidates', 'other positions', 'decided to pursue other',
-'decided to pursue other candidate',
-'wish you the very best',
-'encourage you to check back',
-'hope you keep',
-'we have chosen to move forward with other',
-'we will not be moving forward',
-'after reviewing your background',
-'we are unable to move forward',
+  'have chosen to', 'chosen another', 'pursue other candidates', 'other positions',
+  'decided to pursue other', 'decided to pursue other candidate',
+  'wish you the very best', 'encourage you to check back',
+  'hope you keep', 'we have chosen to move forward with other',
+  'we will not be moving forward', 'after reviewing your background',
+  'we are unable to move forward',
 ];
 
 // ── Interview phrases ─────────────────────────────────────────────────────────
@@ -136,6 +141,11 @@ function isReferred(subject, body) {
   return REFERRED_BODY_PHRASES.some(p => bodyLower.includes(p));
 }
 
+function isFalseInterview(subject) {
+  const lower = subject.toLowerCase();
+  return FALSE_INTERVIEW_SUBJECTS.some(p => lower.includes(p));
+}
+
 function detectStatus(subject, body) {
   const subjectLower = subject.toLowerCase();
   const text = (subject + ' ' + (body || '')).toLowerCase();
@@ -143,8 +153,10 @@ function detectStatus(subject, body) {
   // Rejection always wins
   if (REJECTION_PHRASES.some(p => text.includes(p))) return 'Rejected';
 
-  // Specific interview signals only
-  if (INTERVIEW_PHRASES.some(p => text.includes(p))) return 'Interview';
+  // Skip false interview signals (admin/setup emails)
+  if (!isFalseInterview(subject)) {
+    if (INTERVIEW_PHRASES.some(p => text.includes(p))) return 'Interview';
+  }
 
   // Real status change to In Review
   if (IN_REVIEW_PHRASES.some(p => text.includes(p))) return 'In Review';
@@ -159,23 +171,16 @@ function extractCompanyFromEmail(from) {
   const fromMatch = from.match(/^(.+?)\s*</);
   if (fromMatch) {
     let name = fromMatch[1].trim().replace(/"/g, '');
-    // Only strip these words if they are NOT the entire name
     const cleaned = name.replace(/\b(careers|recruiting|talent|hr|jobs|hiring|no.?reply|notifications?)\b/gi, '').trim();
-    // Only use cleaned name if it left something meaningful (3+ chars)
     if (cleaned.length >= 3 && cleaned.length < 60) return cleaned;
-    // Otherwise fall through to domain extraction
   }
-  // Extract company name from email domain
   const domainMatch = from.match(/@([^.>]+)\./);
   if (domainMatch) {
     const domain = domainMatch[1];
-    // Skip generic mail domains
     const genericDomains = ['mail', 'email', 'smtp', 'send', 'mg', 'em', 'reply', 'bounce', 'noreply'];
     if (genericDomains.includes(domain.toLowerCase())) {
-      // Try the next domain segment e.g. mail.amazon.com → amazon
       const fullDomain = from.match(/@([^>]+)>/)?.[1] || '';
       const segments = fullDomain.split('.');
-      // Find first non-generic segment
       const company = segments.find(s =>
         s.length > 2 && !genericDomains.includes(s.toLowerCase()) &&
         !['com', 'net', 'org', 'io', 'ai', 'co'].includes(s.toLowerCase())
@@ -265,9 +270,11 @@ Status options:
 - "Leads" — saved job or job alert, not yet applied
 - "ignore" — not job related
 
+Important: "Account setup", "candidate portal", "background check", "complete your profile" emails are NOT interviews — classify as "Applied".
+
 Respond ONLY with a JSON array. Each element must have:
 - "index": number
-- "isJob": true/false  
+- "isJob": true/false
 - "status": one of the above (only if isJob=true)
 - "company": company name (only if isJob=true)
 - "role": job title (only if isJob=true)
@@ -302,28 +309,26 @@ async function scanJobEmails(accessToken, afterTimestamp, fullScan = false, from
 
   let query = GMAIL_SEARCH_QUERY;
   const afterEpoch = fromOverride
-  ? Math.floor(new Date(fromOverride).getTime() / 1000)
-  : fullScan
-    ? FULL_SCAN_START
-    : afterTimestamp
-      ? Math.floor(new Date(afterTimestamp).getTime() / 1000)
-      : null;
+    ? Math.floor(new Date(fromOverride).getTime() / 1000)
+    : fullScan
+      ? FULL_SCAN_START
+      : afterTimestamp
+        ? Math.floor(new Date(afterTimestamp).getTime() / 1000)
+        : null;
 
-const beforeEpoch = toOverride
-  ? Math.floor(new Date(toOverride).getTime() / 1000)
-  : null;
+  const beforeEpoch = toOverride
+    ? Math.floor(new Date(toOverride).getTime() / 1000)
+    : null;
 
-if (afterEpoch) query = `(${query}) after:${afterEpoch}`;
-if (beforeEpoch) query = `${query} before:${beforeEpoch}`;
-
-  
+  if (afterEpoch) query = `(${query}) after:${afterEpoch}`;
+  if (beforeEpoch) query = `${query} before:${beforeEpoch}`;
 
   const listRes = await gmail.users.messages.list({ userId: 'me', q: query, maxResults: 200 });
   const messages = listRes.data.messages || [];
   if (messages.length === 0) return [];
 
   const jobs = [];
-  const ambiguous = []; // emails that need Claude
+  const ambiguous = [];
 
   for (const msg of messages) {
     try {
@@ -352,53 +357,53 @@ if (beforeEpoch) query = `${query} before:${beforeEpoch}`;
         continue;
       }
 
-     // Layer 3: "Hello from" — needs body inspection to disambiguate
-const isHelloFrom = email.subject.toLowerCase().includes('hello from');
-if (isHelloFrom) {
-  if (isReferred(email.subject, email.body)) {
-    console.log(`[Referred] ${email.subject}`);
-    jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Referred'));
-    continue;
-  }
-  const hasInterview = INTERVIEW_PHRASES.some(p =>
-    (email.subject + ' ' + email.body).toLowerCase().includes(p)
-  );
-  if (hasInterview) {
-    console.log(`[Interview via Hello From] ${email.subject}`);
-    jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Interview'));
-    continue;
-  }
-  console.log(`[Ambiguous Hello From] ${email.subject}`);
-  ambiguous.push(email);
-  continue;
-}
+      // Layer 3: "Hello from" — needs body inspection to disambiguate
+      const isHelloFrom = email.subject.toLowerCase().includes('hello from');
+      if (isHelloFrom) {
+        if (isReferred(email.subject, email.body)) {
+          console.log(`[Referred] ${email.subject}`);
+          jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Referred'));
+          continue;
+        }
+        const hasInterview = INTERVIEW_PHRASES.some(p =>
+          (email.subject + ' ' + email.body).toLowerCase().includes(p)
+        );
+        if (hasInterview) {
+          console.log(`[Interview via Hello From] ${email.subject}`);
+          jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Interview'));
+          continue;
+        }
+        console.log(`[Ambiguous Hello From] ${email.subject}`);
+        ambiguous.push(email);
+        continue;
+      }
 
-// Layer 4: Referred via body phrases (non "Hello from" subjects)
-const hasInterviewSubject = INTERVIEW_PHRASES.some(p =>
-  email.subject.toLowerCase().includes(p)
-);
-if (!hasInterviewSubject && isReferred(email.subject, email.body)) {
-  console.log(`[Referred] ${email.subject}`);
-  jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Referred'));
-  continue;
-}
+      // Layer 4: Referred via body phrases (non "Hello from" subjects)
+      const hasInterviewSubject = INTERVIEW_PHRASES.some(p =>
+        email.subject.toLowerCase().includes(p)
+      );
+      if (!hasInterviewSubject && isReferred(email.subject, email.body)) {
+        console.log(`[Referred] ${email.subject}`);
+        jobs.push(buildJob(email, extractCompanyFromEmail(email.from), extractRoleFromSubject(email.subject), 'Referred'));
+        continue;
+      }
 
-// Layer 5: rule-based classification
-const status = detectStatus(email.subject, email.body);
-if (status !== null) {
-  console.log(`[Rule] ${status} | ${email.subject}`);
-  jobs.push(buildJob(
-    email,
-    extractCompanyFromEmail(email.from),
-    extractRoleFromSubject(email.subject),
-    status
-  ));
-  continue;
-}
+      // Layer 5: rule-based classification
+      const status = detectStatus(email.subject, email.body);
+      if (status !== null) {
+        console.log(`[Rule] ${status} | ${email.subject}`);
+        jobs.push(buildJob(
+          email,
+          extractCompanyFromEmail(email.from),
+          extractRoleFromSubject(email.subject),
+          status
+        ));
+        continue;
+      }
 
-// Layer 6: truly ambiguous — send to Claude
-console.log(`[Ambiguous] ${email.subject}`);
-ambiguous.push(email);
+      // Layer 6: truly ambiguous — send to Claude
+      console.log(`[Ambiguous] ${email.subject}`);
+      ambiguous.push(email);
 
     } catch (err) {
       console.error('Error fetching message:', msg.id, err.message);
