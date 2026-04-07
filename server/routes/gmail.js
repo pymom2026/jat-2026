@@ -1,7 +1,7 @@
 const express = require('express');
 const requireAuth = require('../middleware/requireAuth');
 const { scanJobEmails } = require('../services/gmail');
-const { addJobs, getAllJobs, deleteJobs, getLastScan, setLastScan } = require('../services/googleSheets');
+const { addJobs, getAllJobs, deleteJobs, getLastScan, setLastScan, updateJob } = require('../services/googleSheets');
 require('dotenv').config({ path: '../../.env' });
 
 const router = express.Router();
@@ -71,10 +71,32 @@ router.post('/scan', async (req, res) => {
       existing.map(j => `${j.company.toLowerCase()}|${j.role.toLowerCase()}`)
     );
 
-    const newJobs = scanned.filter(j => {
-      const key = `${j.company.toLowerCase()}|${j.role.toLowerCase()}`;
-      return !existingKeys.has(key);
-    });
+const STATUS_PRIORITY = {
+  'Rejected': 5, 'Interview': 4, 'In Review': 3, 'Applied': 2, 'Referred': 1, 'Leads': 0
+};
+
+const newJobs = [];
+const jobsToUpdate = [];
+
+for (const job of scanned) {
+  const key = `${job.company.toLowerCase()}|${job.role.toLowerCase()}`;
+  if (!existingKeys.has(key)) {
+    newJobs.push(job);
+  } else {
+    // Check if new status has higher priority than existing
+    const existingEntry = existing.find(
+      e => e.company.toLowerCase() === job.company.toLowerCase()
+    );
+    if (existingEntry) {
+      const existingPriority = STATUS_PRIORITY[existingEntry.status] || 0;
+      const newPriority = STATUS_PRIORITY[job.status] || 0;
+      if (newPriority > existingPriority) {
+        jobsToUpdate.push({ ...existingEntry, status: job.status, notes: job.notes });
+        console.log(`[Update] ${job.company}: ${existingEntry.status} → ${job.status}`);
+      }
+    }
+  }
+}
 
     const newApplicationCompanies = new Set(
       newJobs
@@ -96,6 +118,21 @@ router.post('/scan', async (req, res) => {
       );
       console.log(`[Scan] Removed ${referredToRemove.length} Referred/Leads entries now tracked as applications`);
     }
+
+    // Update existing entries with higher priority status
+if (jobsToUpdate.length > 0) {
+  const { updateJob } = require('../services/googleSheets');
+  for (const job of jobsToUpdate) {
+    await updateJob(
+      req.user.accessToken,
+      sheetId,
+      job.rowIndex,
+      job,
+      req.user.refreshToken
+    );
+  }
+  console.log(`[Scan] Updated ${jobsToUpdate.length} entries with higher priority status`);
+}
 
     await addJobs(
       req.user.accessToken,
