@@ -174,21 +174,27 @@ function extractCompanyFromEmail(from) {
     const cleaned = name.replace(/\b(careers|recruiting|talent|hr|jobs|hiring|no.?reply|notifications?)\b/gi, '').trim();
     if (cleaned.length >= 3 && cleaned.length < 60) return cleaned;
   }
-  const domainMatch = from.match(/@([^.>]+)\./);
-  if (domainMatch) {
-    const domain = domainMatch[1];
-    const genericDomains = ['mail', 'email', 'smtp', 'send', 'mg', 'em', 'reply', 'bounce', 'noreply'];
-    if (genericDomains.includes(domain.toLowerCase())) {
-      const fullDomain = from.match(/@([^>]+)>/)?.[1] || '';
-      const segments = fullDomain.split('.');
-      const company = segments.find(s =>
-        s.length > 2 && !genericDomains.includes(s.toLowerCase()) &&
-        !['com', 'net', 'org', 'io', 'ai', 'co'].includes(s.toLowerCase())
-      );
-      if (company) return company.charAt(0).toUpperCase() + company.slice(1);
-    }
-    return domain.charAt(0).toUpperCase() + domain.slice(1);
+  const fullDomain = from.match(/@([^>]+)>/)?.[1] || from.match(/@(.+)/)?.[1] || '';
+  const segments = fullDomain.split('.');
+  const genericDomains = ['mail', 'email', 'smtp', 'send', 'mg', 'em', 
+    'reply', 'bounce', 'noreply', 'us', 'eu', 'uk', 'ap'];
+  const atsDomains = ['greenhouse-mail', 'greenhouse', 'lever', 'workday', 
+    'jobvite', 'icims', 'taleo', 'successfactors', 'smartrecruiters', 'ashby',
+    'myworkdayjobs', 'bamboohr', 'recruitee', 'comeet'];
+
+  // If any segment is an ATS domain, return Unknown — Claude will get company from subject/body
+  if (segments.some(s => atsDomains.includes(s.toLowerCase()))) {
+    return 'Unknown';
   }
+
+  // Find first meaningful domain segment
+  const company = segments.find(s =>
+    s.length > 2 &&
+    !genericDomains.includes(s.toLowerCase()) &&
+    !atsDomains.includes(s.toLowerCase()) &&
+    !['com', 'net', 'org', 'io', 'ai', 'co'].includes(s.toLowerCase())
+  );
+  if (company) return company.charAt(0).toUpperCase() + company.slice(1);
   return 'Unknown';
 }
 
