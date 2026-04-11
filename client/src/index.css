@@ -224,6 +224,28 @@ a { color: inherit; text-decoration: none; }
 .google-btn svg { width: 20px; height: 20px; }
 .login-note { margin-top: 20px; font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
 
+.interview-notes-section { margin-top: 32px; border-top: 1px solid var(--color-border-tertiary); padding-top: 24px; }
+.interview-notes-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.interview-notes-title { font-size: 16px; font-weight: 500; color: var(--color-text-primary); margin: 0; }
+.btn-add-note { background: #10b981; color: #fff; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+.btn-add-note:hover { background: #059669; }
+.interview-notes-empty { font-size: 13px; color: var(--color-text-secondary); padding: 16px; background: var(--color-background-secondary); border-radius: 8px; text-align: center; }
+.interview-rounds { display: flex; flex-direction: column; gap: 10px; }
+.interview-round-card { background: var(--color-background-secondary); border: 1px solid var(--color-border-tertiary); border-radius: 10px; overflow: hidden; }
+.round-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; cursor: pointer; }
+.round-header:hover { background: var(--color-background-tertiary); }
+.round-info { display: flex; align-items: center; gap: 12px; }
+.round-badge { background: #10b98120; color: #10b981; font-size: 12px; font-weight: 500; padding: 3px 10px; border-radius: 6px; }
+.round-date { font-size: 13px; color: var(--color-text-secondary); }
+.round-followup { font-size: 12px; color: #f59e0b; background: #f59e0b20; padding: 2px 8px; border-radius: 4px; }
+.round-actions { display: flex; align-items: center; gap: 8px; }
+.round-toggle { font-size: 12px; color: var(--color-text-secondary); margin-left: 4px; }
+.round-details { padding: 0 16px 16px; border-top: 1px solid var(--color-border-tertiary); margin-top: 0; }
+.round-field { margin-top: 14px; }
+.round-field-label { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.round-field-value { font-size: 13px; color: var(--color-text-primary); line-height: 1.6; white-space: pre-wrap; }
+.modal-wide { max-width: 680px; width: 95%; }
+
 @media (max-width: 600px) {
   .form-row { grid-template-columns: 1fr; }
   .stat-grid { grid-template-columns: 1fr 1fr; }
