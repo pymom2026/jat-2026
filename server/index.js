@@ -46,6 +46,9 @@ app.use('/auth', authRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/gmail', gmailRouter);
 
+const interviewsRouter = require('./routes/interviews');
+app.use('/api/interviews', interviewsRouter);
+
 app.get('/api/me', (req, res) => {
   if (req.isAuthenticated()) {
     res.json({ user: req.user });
