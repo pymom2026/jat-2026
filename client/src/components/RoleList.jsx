@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import InterviewNotes from './InterviewNotes'
 
 const STATUS_COLORS = {
   'Applied': '#6366f1',
@@ -17,6 +18,7 @@ function RoleList({ jobs, onEdit, onDelete, onMarkDuplicate }) {
   const [expandedRow, setExpandedRow] = useState(null)
   const companyName = decodeURIComponent(company)
   const roles = jobs.filter(j => j.company === companyName)
+  const hasInterview = roles.some(j => j.status === 'Interview')
 
   return (
     <div className="list-page">
@@ -88,6 +90,10 @@ function RoleList({ jobs, onEdit, onDelete, onMarkDuplicate }) {
           </div>
         ))}
       </div>
+
+    {hasInterview && (
+        <InterviewNotes company={companyName} />
+      )}
     </div>
   )
 }
