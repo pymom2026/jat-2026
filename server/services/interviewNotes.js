@@ -1,7 +1,7 @@
 const { google } = require('googleapis');
 
 const NOTES_TAB = 'Interviews';
-const HEADERS = ['Company', 'Round', 'Date', 'Questions Asked', 'My Answers', 'What I\'d Do Better', 'Next Steps', 'Follow Up Date'];
+const HEADERS = ['Company', 'Round', 'Date', 'Questions Asked', 'My Answers', 'What I\'d Do Better', 'Next Steps', 'Follow Up Date', 'Likely to Progress'];
 
 async function getSheetsClient(accessToken, refreshToken) {
   const oauth2Client = new google.auth.OAuth2(
@@ -53,6 +53,7 @@ async function getInterviewNotes(accessToken, sheetId, company, refreshToken) {
       improvements: row[5] || '',
       nextSteps: row[6] || '',
       followUpDate: row[7] || '',
+      likelyToProgress: row[8] || '',
     }))
     .filter(r => r.company.toLowerCase() === company.toLowerCase());
 }
@@ -70,7 +71,8 @@ async function addInterviewNote(accessToken, sheetId, note, refreshToken) {
         note.date || new Date().toISOString().split('T')[0],
         note.questions || '', note.answers || '',
         note.improvements || '', note.nextSteps || '',
-        note.followUpDate || ''
+        note.followUpDate || '',
+        note.likelyToProgress || ''
       ]]
     }
   });
@@ -87,7 +89,8 @@ async function updateInterviewNote(accessToken, sheetId, rowIndex, note, refresh
         note.company, note.round, note.date,
         note.questions || '', note.answers || '',
         note.improvements || '', note.nextSteps || '',
-        note.followUpDate || ''
+        note.followUpDate || '',
+        note.likelyToProgress || ''
       ]]
     }
   });
