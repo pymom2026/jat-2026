@@ -13,6 +13,7 @@ function InterviewNoteForm({ company, note, onSave, onClose }) {
     improvements: note?.improvements || '',
     nextSteps: note?.nextSteps || '',
     followUpDate: note?.followUpDate || '',
+    likelyToProgress: note?.likelyToProgress || '',
     rowIndex: note?.rowIndex || null
   })
 
@@ -47,6 +48,25 @@ function InterviewNoteForm({ company, note, onSave, onClose }) {
               <input type="date" value={form.followUpDate} onChange={set('followUpDate')} />
             </div>
           </div>
+          <div className="form-group">
+            <label>Likely to Progress</label>
+              <div className="score-selector">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`score-btn${form.likelyToProgress === String(n) ? ' selected' : ''}`}
+                    onClick={() => setForm(f => ({ ...f, likelyToProgress: String(n) }))}
+                    title={['Very unlikely', 'Unlikely', 'Maybe', 'Likely', 'Very likely'][n - 1]}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <span className="score-label">
+                  {form.likelyToProgress ? ['Very unlikely', 'Unlikely', 'Maybe', 'Likely', 'Very likely'][parseInt(form.likelyToProgress) - 1] : 'Not rated'}
+                </span>
+              </div>
+        </div>
           <div className="form-group">
             <label>Questions Asked</label>
             <textarea
@@ -167,6 +187,11 @@ function InterviewNotes({ company }) {
                   <span className="round-date">{note.date}</span>
                   {note.followUpDate && (
                     <span className="round-followup">Follow up: {note.followUpDate}</span>
+                  )}
+                  {note.likelyToProgress && (
+                    <span className="round-score" title="Likely to progress">
+                      {'★'.repeat(parseInt(note.likelyToProgress))}{'☆'.repeat(5 - parseInt(note.likelyToProgress))}
+                    </span>
                   )}
                 </div>
                 <div className="round-actions">
