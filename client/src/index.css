@@ -164,6 +164,20 @@ a { color: inherit; text-decoration: none; }
 .role-meta a:hover { text-decoration: underline; }
 .role-notes { font-size: 0.85rem; color: var(--text-muted); background: var(--surface2); padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; }
 .role-actions { display: flex; gap: 8px; }
+.btn-bulk { background: var(--color-background-secondary); border: 1px solid var(--color-border-secondary); color: var(--color-text-secondary); font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.btn-bulk:hover { border-color: var(--color-border-primary); color: var(--color-text-primary); }
+.btn-bulk-cancel { background: none; border: 1px solid var(--color-border-secondary); color: var(--color-text-secondary); font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer; }
+.bulk-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--color-background-secondary); border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--color-border-secondary); }
+.bulk-select-all { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--color-text-secondary); cursor: pointer; }
+.bulk-actions { display: flex; align-items: center; gap: 10px; }
+.bulk-count { font-size: 13px; color: var(--color-text-secondary); }
+.btn-bulk-duplicate { background: #f59e0b20; color: #BA7517; border: 1px solid #f59e0b40; font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.btn-bulk-duplicate:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-bulk-delete { background: #ef444420; color: #ef4444; border: 1px solid #ef444440; font-size: 13px; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.btn-bulk-delete:disabled { opacity: 0.4; cursor: not-allowed; }
+.role-checkbox { width: 16px; height: 16px; cursor: pointer; margin-right: 8px; accent-color: #6366f1; }
+.role-selected { border-color: #6366f1 !important; background: #6366f108; }
+
 
 /* Date filter */
 .nav-filter { position: relative; }
