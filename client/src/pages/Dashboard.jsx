@@ -359,13 +359,15 @@ const handleBulkDuplicate = async (rowIndices) => {
               />
             } />
             <Route path="/company/:company" element={
-              <RoleList
+                <RoleList
                 jobs={allJobs}
                 onEdit={j => { setEditJob(j); setShowForm(true) }}
                 onDelete={handleDelete}
                 onMarkDuplicate={handleMarkDuplicate}
+                onBulkDelete={handleBulkDelete}
+                onBulkDuplicate={handleBulkDuplicate}
               />
-            } />
+} />
           </Routes>
         )}
       </main>
