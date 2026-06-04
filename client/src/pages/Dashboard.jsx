@@ -275,6 +275,27 @@ function Dashboard({ user, setUser }) {
     }
   }
 
+const handleBulkDelete = async (rowIndices) => {
+  try {
+    await Promise.all(rowIndices.map(idx => axios.delete(`/api/jobs/${idx}`)))
+    fetchJobs()
+  } catch (err) {
+    alert('Error deleting: ' + err.message)
+  }
+}
+
+const handleBulkDuplicate = async (rowIndices) => {
+  try {
+    const jobsToUpdate = allJobs.filter(j => rowIndices.includes(j.rowIndex))
+    await Promise.all(jobsToUpdate.map(job =>
+      axios.put(`/api/jobs/${job.rowIndex}`, { ...job, status: 'Duplicate' })
+    ))
+    fetchJobs()
+  } catch (err) {
+    alert('Error marking duplicate: ' + err.message)
+  }
+}
+  
   // Show loading while checking server for sheetId
   if (checkingSheet) {
     return <div className="loading">Loading...</div>
